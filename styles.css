@@ -544,6 +544,26 @@ textarea {
   background: rgba(31, 34, 43, 0.72);
 }
 
+.chapter-content.collapsed {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+
+.chapter-content {
+  max-height: 1000px;
+  overflow: visible;
+  opacity: 1;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding-top: 12px;
+}
+
+.chapter-content.collapsed {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .chapter-top {
   display: flex;
   gap: 12px;

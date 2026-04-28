@@ -599,6 +599,7 @@ function renderChapterCard(number, chapter) {
           <h3>Capítulo</h3>
         </div>
         <div class="chapter-actions">
+          <button class="btn ghost small" type="button" data-toggle-chapter>Alternar</button>
           <button class="btn ghost small" type="button" data-add-group>Adicionar grupo</button>
           <button class="btn danger small" type="button" data-remove-chapter>Remover capítulo</button>
         </div>
@@ -623,7 +624,7 @@ function renderChapterCard(number, chapter) {
         </label>
       </div>
 
-      <div data-groups-list>
+      <div data-groups-list class="chapter-content">
         ${Object.entries(safeChapter.groups || { "": [] }).map(([groupName, images]) => renderGroupCard(groupName, images)).join("")}
       </div>
     </article>
@@ -687,6 +688,17 @@ function bindEditorEvents() {
 }
 
 function bindChapterButtons(scope = document) {
+  scope.querySelectorAll("[data-toggle-chapter]").forEach((button) => {
+    if (button.dataset.bound === "true") return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const card = button.closest("[data-chapter-card]");
+      const content = card.querySelector("[data-groups-list]");
+      content.classList.toggle("collapsed");
+      button.textContent = content.classList.contains("collapsed") ? "Expandir" : "Alternar";
+    });
+  });
+
   scope.querySelectorAll("[data-add-group]").forEach((button) => {
     if (button.dataset.bound === "true") return;
     button.dataset.bound = "true";
