@@ -153,8 +153,8 @@ function renderLanding() {
           Uma versão estática do Adder: você edita JSONs de mangás, capítulos, grupos e imagens pelo navegador, e salva direto no repositório usando a API do GitHub.
         </p>
         <div class="hero-actions">
-          <button class="btn primary" id="begin-btn">Begin</button>
-          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>Load saved</button>
+          <button class="btn primary" id="begin-btn">Começar</button>
+          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>Carregar dados Salvos</button>
         </div>
         <p class="footer-note">
           ${saved ? `Config salva: <strong>${escapeHtml(saved.owner)}/${escapeHtml(saved.repo)}</strong>${hasToken ? " · token salvo neste navegador" : " · token não salvo"}` : "Nenhuma configuração salva neste navegador."}
