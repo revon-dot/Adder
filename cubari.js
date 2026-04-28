@@ -148,3 +148,22 @@ export function validateManifest(manifest = {}, fileName = "") {
 export function prettyJson(manifest) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
+
+
+function encodeBase64Unicode(text) {
+  const bytes = new TextEncoder().encode(String(text));
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+export function buildCubariGistUrl({ owner, repo, branch, path }) {
+  const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
+  if (!owner || !repo || !branch || !cleanPath) return "";
+  const payload = `raw/${owner}/${repo}/${branch}/${cleanPath}`;
+  return `https://cubari.moe/read/gist/${encodeURIComponent(encodeBase64Unicode(payload))}/`;
+}

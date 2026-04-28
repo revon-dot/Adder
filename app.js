@@ -5,14 +5,19 @@ import {
   emptyChapter,
   emptyManifest,
   normalizeManifest,
+  buildCubariGistUrl,
   prettyJson,
   sanitizeFileName,
   sortChapterEntries,
   validateManifest,
 } from "./cubari.js";
+import { extractImgChestLinksFromText, scrapeImgChestAlbum } from "./imgchest.js";
 
 const STORAGE_KEY = "adder-pages:v1";
 const TOKEN_KEY = "adder-pages:token";
+const IMG_TOKEN_KEY = "adder-pages:imgchest-token";
+const FINE_GRAINED_TOKEN_URL =
+  "https://github.com/settings/personal-access-tokens/new?name=Adder%20Pages&description=Editar%20JSONs%20Cubari%20via%20Adder%20Pages&expires_in=90&contents=write";
 
 const app = document.querySelector("#app");
 const state = {
@@ -82,24 +87,36 @@ function loadSavedConfig() {
   }
 }
 
-function saveConfig(config, rememberToken) {
+function saveConfig(config, rememberToken, rememberImgChestToken = false) {
   const safeConfig = { ...config };
   delete safeConfig.token;
+  delete safeConfig.imgchestToken;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig));
   if (rememberToken) {
     localStorage.setItem(TOKEN_KEY, config.token || "");
   } else {
     localStorage.removeItem(TOKEN_KEY);
   }
+
+  if (rememberImgChestToken) {
+    localStorage.setItem(IMG_TOKEN_KEY, config.imgchestToken || "");
+  } else {
+    localStorage.removeItem(IMG_TOKEN_KEY);
+  }
 }
 
 function clearSaved() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(IMG_TOKEN_KEY);
 }
 
 function getSavedToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+function getSavedImgChestToken() {
+  return localStorage.getItem(IMG_TOKEN_KEY) || "";
 }
 
 function ensureClient() {
@@ -112,6 +129,16 @@ function repoLabel() {
   if (!state.config) return "";
   const path = state.config.jsonPath ? `/${state.config.jsonPath}` : "";
   return `${state.config.owner}/${state.config.repo} · ${state.config.branch}${path}`;
+}
+
+function cubariUrlForPath(path) {
+  if (!state.config || !path) return "";
+  return buildCubariGistUrl({
+    owner: state.config.owner,
+    repo: state.config.repo,
+    branch: state.config.branch,
+    path,
+  });
 }
 
 function renderLanding() {
@@ -140,12 +167,13 @@ function renderLanding() {
   document.querySelector("#load-saved-btn")?.addEventListener("click", () => {
     const config = loadSavedConfig();
     if (!config) return renderConnect({});
-    renderConnect({ ...config, token: getSavedToken() });
+    renderConnect({ ...config, token: getSavedToken(), imgchestToken: getSavedImgChestToken() });
   });
 }
 
 function renderConnect(prefill = {}) {
   const token = prefill.token || "";
+  const imgchestToken = prefill.imgchestToken || getSavedImgChestToken();
   render(`
     <section class="panel">
       <div class="panel-header">
@@ -160,6 +188,31 @@ function renderConnect(prefill = {}) {
       <div class="notice">
         <strong>Segurança:</strong> use um fine-grained Personal Access Token limitado apenas ao repositório que você quer editar. Marque “lembrar token” só em computador confiável.
       </div>
+
+      <details class="guide-card" open>
+        <summary>Como criar o Personal Access Token</summary>
+        <div class="guide-content">
+          <p>Use um <strong>Fine-grained token</strong>. Ele é mais seguro porque pode ficar limitado a um único repositório e só às permissões necessárias.</p>
+
+          <a class="btn primary guide-link" href="${FINE_GRAINED_TOKEN_URL}" target="_blank" rel="noreferrer">Abrir criação do token no GitHub</a>
+
+          <ol class="guide-steps">
+            <li>Entre na sua conta do GitHub.</li>
+            <li>Clique no botão acima ou vá em <strong>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</strong>.</li>
+            <li>Em <strong>Token name</strong>, coloque algo como <code>Adder Pages</code>.</li>
+            <li>Em <strong>Expiration</strong>, escolha uma validade. Exemplo: <code>90 days</code>.</li>
+            <li>Em <strong>Resource owner</strong>, escolha o dono do repositório: sua conta ou organização.</li>
+            <li>Em <strong>Repository access</strong>, escolha <strong>Only select repositories</strong> e selecione apenas o repositório dos JSONs.</li>
+            <li>Em <strong>Repository permissions</strong>, procure <strong>Contents</strong> e marque <strong>Read and write</strong>. O <strong>Metadata</strong> fica como leitura automaticamente.</li>
+            <li>Clique em <strong>Generate token</strong>.</li>
+            <li>Copie o token gerado e cole no campo <strong>Personal Access Token</strong> abaixo. O GitHub só mostra esse token uma vez.</li>
+          </ol>
+
+          <div class="copy-box">
+            <strong>Permissão mínima para este site:</strong> Repository permissions → Contents → Read and write.
+          </div>
+        </div>
+      </details>
 
       <form id="connect-form" class="form-grid" autocomplete="off">
         <label class="field">
@@ -195,9 +248,25 @@ function renderConnect(prefill = {}) {
           <p class="hint">Exemplo: <code>series</code>, <code>json</code> ou deixe vazio para usar a raiz.</p>
         </label>
 
+        <details class="guide-card span-2">
+          <summary>ImgChest scraper opcional</summary>
+          <div class="guide-content">
+            <p>Para importar imagens direto de um álbum ImgChest no GitHub Pages, o jeito mais estável é usar o endpoint oficial do ImgChest com um API token do ImgChest. Sem token, o app ainda tenta ler a página pública, mas o navegador pode bloquear por CORS.</p>
+            <label class="field">
+              <span>ImgChest API token</span>
+              <input name="imgchestToken" value="${attr(imgchestToken)}" placeholder="opcional" type="password" />
+              <p class="hint">Esse token é diferente do token do GitHub. Ele só é usado na função “Importar ImgChest”.</p>
+            </label>
+            <label class="checkbox-row">
+              <input name="rememberImgchestToken" type="checkbox" ${imgchestToken ? "checked" : ""} />
+              <span>Lembrar ImgChest token neste navegador</span>
+            </label>
+          </div>
+        </details>
+
         <label class="checkbox-row span-2">
           <input name="rememberToken" type="checkbox" ${token ? "checked" : ""} />
-          <span>Lembrar token neste navegador</span>
+          <span>Lembrar token do GitHub neste navegador</span>
         </label>
 
         <div class="form-actions span-2">
@@ -225,6 +294,7 @@ function renderConnect(prefill = {}) {
       repo: String(form.get("repo") || "").trim(),
       branch: String(form.get("branch") || "main").trim(),
       jsonPath: githubPath.stripSlashes(String(form.get("jsonPath") || "")),
+      imgchestToken: String(form.get("imgchestToken") || "").trim(),
     };
 
     try {
@@ -232,7 +302,7 @@ function renderConnect(prefill = {}) {
       state.config = config;
       const client = ensureClient();
       await client.getRepo(config);
-      saveConfig(config, Boolean(form.get("rememberToken")));
+      saveConfig(config, Boolean(form.get("rememberToken")), Boolean(form.get("rememberImgchestToken")));
       toast("Conectado ao repositório.", "success");
       await loadDashboard();
     } catch (error) {
@@ -352,6 +422,14 @@ function renderDashboard() {
       await copyText(rawGitHubUrl({ ...state.config, path: file.path }));
     });
   });
+
+  document.querySelectorAll("[data-copy-cubari]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const file = state.files[Number(button.dataset.copyCubari)];
+      if (!file) return;
+      await copyText(cubariUrlForPath(file.path));
+    });
+  });
 }
 
 function renderEmptyDashboard() {
@@ -382,6 +460,7 @@ function renderMangaCard(file, index) {
         <p class="card-meta">${chapters} capítulos · ${images} imagens</p>
         <div class="card-actions">
           <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
+          <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
           <button class="btn ghost small" data-copy-raw="${index}">Copiar Raw</button>
         </div>
       </div>
@@ -417,6 +496,7 @@ function renderEditor() {
   const manifest = normalizeManifest(current.data || emptyManifest());
   const fileName = current.path.split("/").pop() || current.name;
   const rawUrl = !current.isNew ? rawGitHubUrl({ ...state.config, path: current.path }) : "";
+  const cubariUrl = !current.isNew ? cubariUrlForPath(current.path) : "";
 
   render(`
     <header class="editor-header">
@@ -496,7 +576,19 @@ function renderEditor() {
 
         <section class="panel">
           <h3>Links</h3>
-          ${rawUrl ? `<p class="hint">Raw GitHub:</p><p class="card-meta">${escapeHtml(rawUrl)}</p><button class="btn ghost small" id="copy-raw-current-btn">Copiar Raw</button>` : `<p class="hint">Salve o arquivo primeiro para gerar o link raw.</p>`}
+          ${rawUrl ? `
+            <div class="link-stack">
+              <div>
+                <p class="hint">URL final Cubari:</p>
+                <p class="card-meta">${escapeHtml(cubariUrl)}</p>
+                <div class="row-actions"><button class="btn primary small" id="copy-cubari-current-btn">Copiar Cubari</button><a class="btn ghost small" href="${attr(cubariUrl)}" target="_blank" rel="noreferrer">Abrir</a></div>
+              </div>
+              <div>
+                <p class="hint">Raw GitHub:</p>
+                <p class="card-meta">${escapeHtml(rawUrl)}</p>
+                <button class="btn ghost small" id="copy-raw-current-btn">Copiar Raw</button>
+              </div>
+            </div>` : `<p class="hint">Salve o arquivo primeiro para gerar o link Cubari e raw.</p>`}
         </section>
       </aside>
     </div>
@@ -571,6 +663,16 @@ function renderGroupCard(groupName = "", images = []) {
         </label>
         <button class="btn danger small" type="button" data-remove-group>Remover grupo</button>
       </div>
+      <div class="imgchest-tools">
+        <label class="field imgchest-url-field">
+          <span>ImgChest album URL</span>
+          <input data-imgchest-url placeholder="https://imgchest.com/p/..." />
+        </label>
+        <div class="inline-tools">
+          <button class="btn ghost small" type="button" data-import-imgchest>Importar ImgChest</button>
+          <button class="btn ghost small" type="button" data-extract-imgchest>Extrair URLs coladas</button>
+        </div>
+      </div>
       <label class="field">
         <span>URLs das imagens</span>
         <textarea data-group-images placeholder="Cole uma URL por linha">${escapeHtml(text)}</textarea>
@@ -592,6 +694,10 @@ function bindEditorEvents() {
 
   document.querySelector("#copy-raw-current-btn")?.addEventListener("click", async () => {
     await copyText(rawGitHubUrl({ ...state.config, path: state.current.path }));
+  });
+
+  document.querySelector("#copy-cubari-current-btn")?.addEventListener("click", async () => {
+    await copyText(cubariUrlForPath(state.current.path));
   });
 
   bindChapterButtons();
@@ -635,6 +741,69 @@ function bindChapterButtons(scope = document) {
       updateEditorStats();
     });
   });
+
+  scope.querySelectorAll("[data-import-imgchest]").forEach((button) => {
+    if (button.dataset.bound === "true") return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", async () => importImgChestIntoGroup(button));
+  });
+
+  scope.querySelectorAll("[data-extract-imgchest]").forEach((button) => {
+    if (button.dataset.bound === "true") return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => extractImgChestFromTextarea(button));
+  });
+}
+
+async function importImgChestIntoGroup(button) {
+  const groupCard = button.closest("[data-group-card]");
+  const input = groupCard?.querySelector("[data-imgchest-url]");
+  const textarea = groupCard?.querySelector("[data-group-images]");
+  const albumUrl = input?.value.trim();
+
+  if (!albumUrl) {
+    toast("Cole a URL do álbum ImgChest primeiro.", "error");
+    return;
+  }
+
+  let token = state.config?.imgchestToken || getSavedImgChestToken();
+  if (!token) {
+    token = prompt("Opcional: cole seu ImgChest API token para importar pelo endpoint oficial. Se deixar vazio, vou tentar ler a página pública, mas o navegador pode bloquear.") || "";
+    if (token) state.config.imgchestToken = token.trim();
+  }
+
+  try {
+    setBusy(true);
+    button.disabled = true;
+    button.textContent = "Importando...";
+    const links = await scrapeImgChestAlbum(albumUrl, { token });
+    if (!links.length) {
+      toast("Nenhuma imagem encontrada no álbum.", "error");
+      return;
+    }
+    textarea.value = links.join("\n");
+    toast(`${links.length} imagens importadas do ImgChest.`, "success");
+    updateEditorStats();
+  } catch (error) {
+    toast(error.message || String(error), "error");
+  } finally {
+    button.textContent = "Importar ImgChest";
+    button.disabled = false;
+    setBusy(false);
+  }
+}
+
+function extractImgChestFromTextarea(button) {
+  const groupCard = button.closest("[data-group-card]");
+  const textarea = groupCard?.querySelector("[data-group-images]");
+  const links = extractImgChestLinksFromText(textarea?.value || "");
+  if (!links.length) {
+    toast("Não encontrei URLs cdn.imgchest.com no texto colado.", "error");
+    return;
+  }
+  textarea.value = links.join("\n");
+  toast(`${links.length} URLs ImgChest extraídas.`, "success");
+  updateEditorStats();
 }
 
 function addChapterCard() {
