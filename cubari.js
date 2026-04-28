@@ -164,6 +164,6 @@ function encodeBase64Unicode(text) {
 export function buildCubariGistUrl({ owner, repo, branch, path }) {
   const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
   if (!owner || !repo || !branch || !cleanPath) return "";
-  const payload = `raw/${owner}/${repo}/${branch}/${cleanPath}`;
+  const payload = `${owner}/${repo}/${branch}/${cleanPath}`;
   return `https://cubari.moe/read/gist/${encodeURIComponent(encodeBase64Unicode(payload))}/`;
 }
