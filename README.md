@@ -161,3 +161,23 @@ Exemplo básico:
 - Se você mudar o nome de um arquivo já existente, o app cria/atualiza o novo arquivo, mas não apaga automaticamente o antigo.
 - O app não hospeda imagens. Ele apenas salva URLs de imagens no JSON.
 - Se o repositório for privado, o app ainda consegue editar usando token, mas o link raw pode não abrir publicamente sem autenticação.
+
+## Atualização v2: ImgChest e link Cubari
+
+Esta versão deixa mais explícito o fluxo de adicionar capítulo com ImgChest:
+
+1. Abra um mangá.
+2. Clique em **Adicionar capítulo / ImgChest**.
+3. Preencha número, título, volume e grupo.
+4. Cole a URL do álbum ImgChest.
+5. Clique em **Importar ImgChest**.
+6. Confira as URLs importadas e clique em **Criar capítulo**.
+7. Clique em **Salvar no GitHub**.
+
+Também há botões para copiar a URL final Cubari no formato:
+
+```txt
+https://cubari.moe/read/gist/<base64-de-raw/owner/repo/branch/arquivo.json>/
+```
+
+Observação: o antigo `imgchest_scraper.py` local usava Python + Playwright. No GitHub Pages isso não roda, então esta versão usa JavaScript no navegador e tenta importar pelo endpoint/API do ImgChest. Se o navegador bloquear a página pública por CORS, use o campo de ImgChest API token ou cole as URLs CDN manualmente.

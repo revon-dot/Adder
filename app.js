@@ -360,6 +360,8 @@ async function loadDashboard() {
 }
 
 function renderDashboard() {
+  const totalChapters = state.files.reduce((sum, file) => sum + (file.data ? Object.keys(file.data.chapters || {}).length : 0), 0);
+  const totalImages = state.files.reduce((sum, file) => sum + (file.data ? countImages(file.data) : 0), 0);
   const filtered = state.files.filter((file) => {
     const query = state.search.trim().toLowerCase();
     if (!query) return true;
@@ -368,20 +370,32 @@ function renderDashboard() {
   });
 
   render(`
-    <header class="dashboard-header">
-      <div>
-        <p class="kicker">Dashboard</p>
-        <h2>Biblioteca</h2>
-        <p class="repo-line"><span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span></p>
+    <header class="dashboard-header dashboard-compact">
+      <div class="dashboard-main">
+        <div class="dashboard-title-wrap">
+          <div class="dashboard-logo">A</div>
+          <div>
+            <p class="kicker">Dashboard</p>
+            <h2>Biblioteca</h2>
+          </div>
+        </div>
+
+        <div class="dashboard-status-row">
+          <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
+          <span class="mini-stat"><strong>${state.files.length}</strong> JSONs</span>
+          <span class="mini-stat"><strong>${totalChapters}</strong> capítulos</span>
+          <span class="mini-stat"><strong>${totalImages}</strong> imagens</span>
+        </div>
       </div>
-      <div class="toolbar">
+
+      <div class="toolbar dashboard-toolbar">
         <button class="btn primary" id="new-manga-btn">Novo mangá</button>
         <button class="btn ghost" id="refresh-btn">Atualizar</button>
         <button class="btn ghost" id="change-repo-btn">Trocar repo</button>
       </div>
     </header>
 
-    <section class="panel">
+    <section class="panel dashboard-panel">
       <div class="search-bar">
         <input id="search-input" data-keep-enabled="true" value="${attr(state.search)}" placeholder="Buscar por título ou arquivo..." />
         <span class="status-pill">${filtered.length} / ${state.files.length} JSONs</span>
@@ -551,9 +565,9 @@ function renderEditor() {
           <div class="panel-header">
             <div>
               <h2>Capítulos</h2>
-              <p>Volume e nome do grupo são opcionais. Para grupo sem nome, deixe o campo vazio.</p>
+              <p>Adicione capítulos manualmente ou cole um álbum ImgChest para importar as páginas como no Adder local.</p>
             </div>
-            <button class="btn primary" id="add-chapter-btn">Adicionar capítulo</button>
+            <button class="btn primary" id="add-chapter-btn">Adicionar capítulo / ImgChest</button>
           </div>
           <div class="chapters-list" id="chapters-list">
             ${renderChapterCards(manifest)}
@@ -806,19 +820,159 @@ function extractImgChestFromTextarea(button) {
   updateEditorStats();
 }
 
-function addChapterCard() {
-  const list = document.querySelector("#chapters-list");
-  document.querySelector("#no-chapters-state")?.remove();
+function getNextChapterNumber() {
   const { manifest } = collectManifestFromEditor({ silent: true });
   const numbers = Object.keys(manifest.chapters || {})
     .map((value) => Number.parseFloat(value))
     .filter(Number.isFinite);
-  const next = numbers.length ? Math.max(...numbers) + 1 : 1;
-  list.insertAdjacentHTML("beforeend", renderChapterCard(String(next), emptyChapter()));
-  const card = list.lastElementChild;
-  bindChapterButtons(card);
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-  updateEditorStats();
+  return numbers.length ? String(Math.max(...numbers) + 1) : "1";
+}
+
+function addChapterCard() {
+  showAddChapterModal();
+}
+
+function showAddChapterModal() {
+  const next = getNextChapterNumber();
+  const savedToken = state.config?.imgchestToken || getSavedImgChestToken();
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <section class="modal-card add-chapter-modal">
+      <div class="panel-header">
+        <div>
+          <p class="kicker">Novo capítulo</p>
+          <h2>Adicionar capítulo com ImgChest</h2>
+          <p>Funciona como o Adder local: informe número, título, volume, grupo e, se quiser, a URL do álbum ImgChest para importar as páginas.</p>
+        </div>
+        <button class="btn ghost" type="button" data-close-modal>Fechar</button>
+      </div>
+
+      <form id="add-chapter-modal-form" class="form-grid" autocomplete="off">
+        <label class="field">
+          <span>Número</span>
+          <input name="number" value="${attr(next)}" placeholder="1" required />
+        </label>
+        <label class="field">
+          <span>Título do capítulo</span>
+          <input name="title" placeholder="Capítulo 1" />
+        </label>
+        <label class="field">
+          <span>Volume</span>
+          <input name="volume" value="1" placeholder="opcional" />
+        </label>
+        <label class="field">
+          <span>Nome do grupo</span>
+          <input name="groupName" value="Eleven" placeholder="vazio = grupo sem nome" />
+        </label>
+
+        <div class="imgchest-import-box span-2">
+          <div>
+            <p class="kicker">ImgChest scraper</p>
+            <h3>Importar páginas do álbum</h3>
+            <p class="hint">Cole a URL do álbum. No GitHub Pages não dá para rodar Python/Playwright; o app tenta usar a API do ImgChest. Se o navegador bloquear a página pública, informe um ImgChest API token.</p>
+          </div>
+          <label class="field">
+            <span>URL do álbum ImgChest</span>
+            <input name="albumUrl" placeholder="https://imgchest.com/p/..." />
+          </label>
+          <label class="field">
+            <span>ImgChest API token opcional</span>
+            <input name="imgchestToken" value="${attr(savedToken)}" type="password" placeholder="opcional" />
+          </label>
+          <div class="row-actions">
+            <button class="btn ghost" type="button" id="modal-import-imgchest-btn">Importar ImgChest</button>
+            <button class="btn ghost" type="button" id="modal-extract-imgchest-btn">Extrair URLs coladas</button>
+          </div>
+        </div>
+
+        <label class="field span-2">
+          <span>URLs das imagens</span>
+          <textarea name="linksText" rows="10" placeholder="As URLs importadas do ImgChest vão aparecer aqui. Você também pode colar uma URL por linha manualmente."></textarea>
+        </label>
+
+        <div class="modal-actions span-2">
+          <button class="btn primary" type="submit">Criar capítulo</button>
+          <button class="btn ghost" type="button" data-close-modal>Cancelar</button>
+        </div>
+      </form>
+    </section>
+  `;
+  document.body.appendChild(modal);
+
+  const form = modal.querySelector("#add-chapter-modal-form");
+  const close = () => modal.remove();
+  modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
+
+  modal.querySelector("#modal-import-imgchest-btn").addEventListener("click", async () => {
+    const albumUrl = form.albumUrl.value.trim();
+    const token = form.imgchestToken.value.trim();
+    if (!albumUrl) {
+      toast("Cole a URL do álbum ImgChest primeiro.", "error");
+      return;
+    }
+    try {
+      setBusy(true);
+      const btn = modal.querySelector("#modal-import-imgchest-btn");
+      btn.textContent = "Importando...";
+      const links = await scrapeImgChestAlbum(albumUrl, { token });
+      form.linksText.value = links.join("\n");
+      if (token) state.config.imgchestToken = token;
+      toast(`${links.length} imagens importadas do ImgChest.`, "success");
+    } catch (error) {
+      toast(error.message || String(error), "error");
+    } finally {
+      const btn = modal.querySelector("#modal-import-imgchest-btn");
+      if (btn) btn.textContent = "Importar ImgChest";
+      setBusy(false);
+    }
+  });
+
+  modal.querySelector("#modal-extract-imgchest-btn").addEventListener("click", () => {
+    const links = extractImgChestLinksFromText(form.linksText.value || "");
+    if (!links.length) {
+      toast("Não encontrei URLs cdn.imgchest.com no texto colado.", "error");
+      return;
+    }
+    form.linksText.value = links.join("\n");
+    toast(`${links.length} URLs ImgChest extraídas.`, "success");
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const list = document.querySelector("#chapters-list");
+    document.querySelector("#no-chapters-state")?.remove();
+
+    const formData = new FormData(form);
+    const number = String(formData.get("number") || "").trim();
+    if (!number) {
+      toast("Informe o número do capítulo.", "error");
+      return;
+    }
+
+    const links = String(formData.get("linksText") || "")
+      .split(/\r?\n/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const groupName = String(formData.get("groupName") || "").trim();
+    const chapter = {
+      title: String(formData.get("title") || "").trim(),
+      volume: String(formData.get("volume") || ""),
+      last_updated: String(Math.floor(Date.now() / 1000)),
+      groups: {
+        [groupName]: links,
+      },
+    };
+
+    list.insertAdjacentHTML("beforeend", renderChapterCard(number, chapter));
+    const card = list.lastElementChild;
+    bindChapterButtons(card);
+    close();
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    updateEditorStats();
+  });
+
+  form.number?.focus();
 }
 
 function collectManifestFromEditor(options = {}) {
