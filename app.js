@@ -600,7 +600,6 @@ function renderChapterCard(number, chapter) {
         </div>
         <div class="chapter-actions">
           <button class="btn ghost small" type="button" data-toggle-chapter>Alternar</button>
-          <button class="btn ghost small" type="button" data-add-group>Adicionar grupo</button>
           <button class="btn danger small" type="button" data-remove-chapter>Remover capítulo</button>
         </div>
       </div>
@@ -699,17 +698,7 @@ function bindChapterButtons(scope = document) {
     });
   });
 
-  scope.querySelectorAll("[data-add-group]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const card = button.closest("[data-chapter-card]");
-      const list = card.querySelector("[data-groups-list]");
-      list.insertAdjacentHTML("beforeend", renderGroupCard("", []));
-      bindChapterButtons(card);
-      updateEditorStats();
-    });
-  });
+
 
   scope.querySelectorAll("[data-remove-chapter]").forEach((button) => {
     if (button.dataset.bound === "true") return;
@@ -829,10 +818,7 @@ function showAddChapterModal() {
       </div>
 
       <form id="add-chapter-modal-form" class="form-grid" autocomplete="off">
-        <label class="field">
-          <span>Número</span>
-          <input name="number" value="${attr(next)}" placeholder="1" required />
-        </label>
+
         <label class="field">
           <span>Título do capítulo</span>
           <input name="title" placeholder="Capítulo 1" />
@@ -841,6 +827,8 @@ function showAddChapterModal() {
           <span>Volume</span>
           <input name="volume" value="1" placeholder="opcional" />
         </label>
+
+
         <label class="field">
           <span>Nome do grupo</span>
           <input name="groupName" value="Eleven" placeholder="vazio = grupo sem nome" />
