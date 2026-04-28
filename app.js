@@ -1131,4 +1131,13 @@ async function copyText(text) {
   }
 }
 
-renderLanding();
+try {
+    renderLanding();
+  } catch (error) {
+    console.error("Error during initial render:", error);
+    // Display a fallback message if rendering fails
+    const appDiv = document.getElementById('app');
+    if (appDiv) {
+      appDiv.innerHTML = `<div class='error-box'>Ocorreu um erro ao carregar a página. Verifique o console para mais detalhes.</div>`;
+    }
+  }
