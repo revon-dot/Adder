@@ -422,28 +422,20 @@ function renderDashboard() {
     renderDashboard();
   });
 
-  document.querySelectorAll("[data-open-file]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const file = state.files[Number(button.dataset.openFile)];
-      if (file?.data) openEditor(file);
-    });
-  });
+   document.querySelectorAll("[data-open-file]").forEach((button) => {
+     button.addEventListener("click", () => {
+       const file = state.files[Number(button.dataset.openFile)];
+       if (file?.data) openEditor(file);
+     });
+   });
 
-  document.querySelectorAll("[data-copy-raw]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const file = state.files[Number(button.dataset.copyRaw)];
-      if (!file) return;
-      await copyText(rawGitHubUrl({ ...state.config, path: file.path }));
-    });
-  });
-
-  document.querySelectorAll("[data-copy-cubari]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const file = state.files[Number(button.dataset.copyCubari)];
-      if (!file) return;
-      await copyText(cubariUrlForPath(file.path));
-    });
-  });
+   document.querySelectorAll("[data-copy-cubari]").forEach((button) => {
+     button.addEventListener("click", async () => {
+       const file = state.files[Number(button.dataset.copyCubari)];
+       if (!file) return;
+       await copyText(cubariUrlForPath(file.path));
+     });
+   });
 }
 
 function renderEmptyDashboard() {
@@ -472,11 +464,10 @@ function renderMangaCard(file, index) {
         <p class="card-meta">${escapeHtml(file.name)}</p>
         ${error}
         <p class="card-meta">${chapters} capítulos · ${images} imagens</p>
-        <div class="card-actions">
-          <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
-          <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
-          <button class="btn ghost small" data-copy-raw="${index}">Copiar Raw</button>
-        </div>
+         <div class="card-actions">
+           <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
+           <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
+         </div>
       </div>
     </article>
   `;
@@ -512,106 +503,29 @@ function renderEditor() {
   const rawUrl = !current.isNew ? rawGitHubUrl({ ...state.config, path: current.path }) : "";
   const cubariUrl = !current.isNew ? cubariUrlForPath(current.path) : "";
 
-  render(`
-    <header class="editor-header">
-      <div>
-        <p class="kicker">Editor</p>
-        <h2>${escapeHtml(manifest.title || "Novo mangá")}</h2>
-        <p class="repo-line">${escapeHtml(current.path || fileName)}</p>
-      </div>
-      <div class="toolbar">
-        <button class="btn primary" id="save-btn">Salvar no GitHub</button>
-        <button class="btn ghost" id="preview-json-btn">Pré-visualizar JSON</button>
-        <button class="btn ghost" id="back-dashboard-btn">Dashboard</button>
-      </div>
-    </header>
+   render(`
+     <header class="editor-header dashboard-compact">
+       <div class="dashboard-main">
+         <div class="dashboard-title-wrap">
+           <div class="dashboard-logo">A</div>
+           <div>
+             <p class="kicker">Editor</p>
+             <h2>${escapeHtml(manifest.title || "Novo mangá")}</h2>
+           </div>
+         </div>
 
-    <div class="editor-layout">
-      <main class="panel">
-        <form id="editor-form" class="form-grid" autocomplete="off">
-          <label class="field span-2">
-            <span>Nome do arquivo</span>
-            <input name="fileName" value="${attr(fileName)}" placeholder="nome-do-manga.json" required />
-            <p class="hint">Se for um arquivo novo, esse será o nome salvo no repositório. Exemplo: <code>one-piece.json</code></p>
-          </label>
+         <div class="dashboard-status-row">
+           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
+         </div>
+       </div>
 
-          <label class="field span-2">
-            <span>Título</span>
-            <input name="title" value="${attr(manifest.title)}" placeholder="Nome do mangá" required />
-          </label>
-
-          <label class="field">
-            <span>Autor</span>
-            <input name="author" value="${attr(manifest.author)}" placeholder="Autor" />
-          </label>
-
-          <label class="field">
-            <span>Artista</span>
-            <input name="artist" value="${attr(manifest.artist)}" placeholder="Artista" />
-          </label>
-
-          <label class="field span-2">
-            <span>Capa</span>
-            <input name="cover" value="${attr(manifest.cover)}" placeholder="https://..." />
-          </label>
-
-          <label class="field span-2">
-            <span>Descrição</span>
-            <textarea name="description" placeholder="Descrição do mangá">${escapeHtml(manifest.description)}</textarea>
-          </label>
-        </form>
-
-        <section style="margin-top: 24px;">
-          <div class="panel-header">
-            <div>
-              <h2>Capítulos</h2>
-              <p>Adicione capítulos manualmente ou cole um álbum ImgChest para importar as páginas como no Adder local.</p>
-            </div>
-            <button class="btn primary" id="add-chapter-btn">Adicionar capítulo / ImgChest</button>
-          </div>
-          <div class="chapters-list" id="chapters-list">
-            ${renderChapterCards(manifest)}
-          </div>
-        </section>
-      </main>
-
-      <aside class="sidebar">
-        <section class="panel">
-          <h3>Resumo</h3>
-          <div class="preview-cover" id="preview-cover">
-            ${manifest.cover ? `<img src="${attr(manifest.cover)}" alt="Capa" onerror="this.parentElement.innerHTML='<div class=&quot;cover-placeholder&quot;>Sem capa</div>'" />` : `<div class="cover-placeholder">Sem capa</div>`}
-          </div>
-          <ul class="stats-list" style="margin-top: 14px;">
-            <li><span>Capítulos</span><strong id="stat-chapters">${Object.keys(manifest.chapters).length}</strong></li>
-            <li><span>Grupos</span><strong id="stat-groups">${countGroups(manifest)}</strong></li>
-            <li><span>Imagens</span><strong id="stat-images">${countImages(manifest)}</strong></li>
-          </ul>
-        </section>
-
-        <section class="panel">
-          <h3>Links</h3>
-          ${rawUrl ? `
-          <div class="link-stack">
-            <div>
-              <p class="hint">URL final Cubari:</p>
-              <p class="card-meta">${escapeHtml(cubariUrl)}</p>
-              <div class="row-actions"><button class="btn primary small" id="copy-cubari-current-btn">Copiar Cubari</button><a class="btn ghost small" href="${attr(cubariUrl)}" target="_blank" rel="noreferrer">Abrir</a></div>
-            </div>
-            <div>
-              <p class="hint">Raw GitHub:</p>
-              <p class="card-meta">${escapeHtml(rawUrl)}</p>
-              <button class="btn ghost small" id="copy-raw-current-btn">Copiar Raw</button>
-            </div>
-          </div>` : `<p class="hint">Salve o arquivo primeiro para gerar o link Cubari e raw.</p>`}
-        
-        ${!current.isNew ? `
-        <div class="link-stack">
-          <button class="btn danger small" id="delete-file-btn">Deletar obra</button>
-        </div>` : ''}
-        </section>
-      </aside>
-    </div>
-  `);
+       <div class="toolbar dashboard-toolbar">
+         <button class="btn primary" id="save-btn">Salvar no GitHub</button>
+         <button class="btn ghost" id="preview-json-btn">Pré-visualizar JSON</button>
+         <button class="btn ghost" id="back-dashboard-btn">Dashboard</button>
+       </div>
+     </header>
+   `);
 
   bindEditorEvents();
 }
@@ -1159,6 +1073,7 @@ async function deleteCurrentFile() {
      toast("Obra excluída com sucesso.", "success");
      renderDashboard();
    } catch (error) {
+     console.error("Erro ao deletar arquivo:", error);
      toast(errorMessage(error), "error");
    } finally {
      setBusy(false);
