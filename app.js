@@ -591,18 +591,23 @@ function renderEditor() {
         <section class="panel">
           <h3>Links</h3>
           ${rawUrl ? `
-            <div class="link-stack">
-              <div>
-                <p class="hint">URL final Cubari:</p>
-                <p class="card-meta">${escapeHtml(cubariUrl)}</p>
-                <div class="row-actions"><button class="btn primary small" id="copy-cubari-current-btn">Copiar Cubari</button><a class="btn ghost small" href="${attr(cubariUrl)}" target="_blank" rel="noreferrer">Abrir</a></div>
-              </div>
-              <div>
-                <p class="hint">Raw GitHub:</p>
-                <p class="card-meta">${escapeHtml(rawUrl)}</p>
-                <button class="btn ghost small" id="copy-raw-current-btn">Copiar Raw</button>
-              </div>
-            </div>` : `<p class="hint">Salve o arquivo primeiro para gerar o link Cubari e raw.</p>`}
+          <div class="link-stack">
+            <div>
+              <p class="hint">URL final Cubari:</p>
+              <p class="card-meta">${escapeHtml(cubariUrl)}</p>
+              <div class="row-actions"><button class="btn primary small" id="copy-cubari-current-btn">Copiar Cubari</button><a class="btn ghost small" href="${attr(cubariUrl)}" target="_blank" rel="noreferrer">Abrir</a></div>
+            </div>
+            <div>
+              <p class="hint">Raw GitHub:</p>
+              <p class="card-meta">${escapeHtml(rawUrl)}</p>
+              <button class="btn ghost small" id="copy-raw-current-btn">Copiar Raw</button>
+            </div>
+          </div>` : `<p class="hint">Salve o arquivo primeiro para gerar o link Cubari e raw.</p>`}
+        
+        ${!current.isNew ? `
+        <div class="link-stack">
+          <button class="btn danger small" id="delete-file-btn">Deletar obra</button>
+        </div>` : ''}
         </section>
       </aside>
     </div>
@@ -706,13 +711,17 @@ function bindEditorEvents() {
   document.querySelector("#editor-form")?.addEventListener("input", updateEditorStats);
   document.querySelector("#chapters-list")?.addEventListener("input", updateEditorStats);
 
-  document.querySelector("#copy-raw-current-btn")?.addEventListener("click", async () => {
-    await copyText(rawGitHubUrl({ ...state.config, path: state.current.path }));
-  });
-
-  document.querySelector("#copy-cubari-current-btn")?.addEventListener("click", async () => {
-    await copyText(cubariUrlForPath(state.current.path));
-  });
+   document.querySelector("#copy-raw-current-btn")?.addEventListener("click", async () => {
+     await copyText(rawGitHubUrl({ ...state.config, path: state.current.path }));
+   });
+ 
+   document.querySelector("#copy-cubari-current-btn")?.addEventListener("click", async () => {
+     await copyText(cubariUrlForPath(state.current.path));
+   });
+   
+   document.querySelector("#delete-file-btn")?.addEventListener("click", async () => {
+     await deleteCurrentFile();
+   });
 
   bindChapterButtons();
   updateEditorStats();
@@ -1062,67 +1071,99 @@ function updateEditorStats() {
 }
 
 async function saveCurrentEditor() {
-  const { manifest, fileName, validation } = collectManifestFromEditor();
-  if (validation.errors.length) {
-    showValidationModal(validation);
-    return;
-  }
+   const { manifest, fileName, validation } = collectManifestFromEditor();
+   if (validation.errors.length) {
+     showValidationModal(validation);
+     return;
+   }
 
-  if (validation.warnings.length) {
-    const ok = confirm(`Avisos encontrados:\n\n${validation.warnings.slice(0, 6).join("\n")}\n\nSalvar mesmo assim?`);
-    if (!ok) return;
-  }
+   if (validation.warnings.length) {
+     const ok = confirm(`Avisos encontrados:\n\n${validation.warnings.slice(0, 6).join("\n")}\n\nSalvar mesmo assim?`);
+     if (!ok) return;
+   }
 
-  const client = ensureClient();
-  const oldPath = state.current.path;
-  const desiredPath = githubPath.joinPath(state.config.jsonPath, fileName);
-  const isRenamingExisting = !state.current.isNew && oldPath !== desiredPath;
+   const client = ensureClient();
+   const oldPath = state.current.path;
+   const desiredPath = githubPath.joinPath(state.config.jsonPath, fileName);
+   const isRenamingExisting = !state.current.isNew && oldPath !== desiredPath;
 
-  if (isRenamingExisting) {
-    const ok = confirm("Você mudou o nome do arquivo. O Adder Pages vai criar/atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?");
-    if (!ok) return;
-  }
+   if (isRenamingExisting) {
+     const ok = confirm("Você mudou o nome do arquivo. O Adder Pages vai criar/atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?");
+     if (!ok) return;
+   }
 
-  const message = `${state.current.isNew ? "Create" : "Update"} ${fileName} via Adder Pages`;
+   const message = `${state.current.isNew ? "Create" : "Update"} ${fileName} via Adder Pages`;
 
-  try {
-    setBusy(true);
-    const result = await client.putFile({
-      ...state.config,
-      path: desiredPath,
-      text: prettyJson(manifest),
-      message,
-      sha: isRenamingExisting || state.current.isNew ? undefined : state.current.sha,
-    });
+   try {
+     setBusy(true);
+     const result = await client.putFile({
+       ...state.config,
+       path: desiredPath,
+       text: prettyJson(manifest),
+       message,
+       sha: isRenamingExisting || state.current.isNew ? undefined : state.current.sha,
+     });
 
-    state.current = {
-      isNew: false,
-      name: fileName,
-      path: desiredPath,
-      sha: result.content?.sha,
-      data: manifest,
-    };
+     state.current = {
+       isNew: false,
+       name: fileName,
+       path: desiredPath,
+       sha: result.content?.sha,
+       data: manifest,
+     };
 
-    const existingIndex = state.files.findIndex((file) => file.path === desiredPath || file.path === oldPath);
-    const record = {
-      name: fileName,
-      path: desiredPath,
-      sha: result.content?.sha,
-      htmlUrl: result.content?.html_url,
-      downloadUrl: result.content?.download_url,
-      data: manifest,
-    };
-    if (existingIndex >= 0) state.files[existingIndex] = record;
-    else state.files.push(record);
+     const existingIndex = state.files.findIndex((file) => file.path === desiredPath || file.path === oldPath);
+     const record = {
+       name: fileName,
+       path: desiredPath,
+       sha: result.content?.sha,
+       htmlUrl: result.content?.html_url,
+       downloadUrl: result.content?.download_url,
+       data: manifest,
+     };
+     if (existingIndex >= 0) state.files[existingIndex] = record;
+     else state.files.push(record);
 
-    toast("JSON salvo no GitHub.", "success");
-    renderEditor();
-  } catch (error) {
-    toast(errorMessage(error), "error");
-  } finally {
-    setBusy(false);
-  }
-}
+     toast("JSON salvo no GitHub.", "success");
+     renderEditor();
+   } catch (error) {
+     toast(errorMessage(error), "error");
+   } finally {
+     setBusy(false);
+   }
+ }
+
+async function deleteCurrentFile() {
+   if (!state.current || state.current.isNew) {
+     toast("Não é possível deletar um arquivo que ainda não foi salvo.", "error");
+     return;
+   }
+
+   if (!confirm("Tem certeza que deseja excluir esta obra? Esta ação não pode ser desfeita.")) {
+     return;
+   }
+
+   try {
+     setBusy(true);
+     const client = ensureClient();
+     await client.deleteFile({
+       ...state.config,
+       path: state.current.path,
+       message: `Delete ${state.current.name} via Adder Pages`,
+       sha: state.current.sha,
+     });
+
+     // Remove from files list
+     state.files = state.files.filter(file => file.path !== state.current.path);
+     
+     toast("Obra excluída com sucesso.", "success");
+     renderDashboard();
+   } catch (error) {
+     toast(errorMessage(error), "error");
+   } finally {
+     setBusy(false);
+   }
+ }
 
 function showJsonModal(manifest) {
   const modal = document.createElement("div");
