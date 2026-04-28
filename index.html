@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Adder Pages - editor estático de JSON Cubari com salvamento via GitHub API." />
+    <title>Adder Pages</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <noscript>
+      <main class="noscript-box">
+        <h1>JavaScript necessário</h1>
+        <p>O Adder Pages precisa de JavaScript para acessar a API do GitHub e editar os JSONs.</p>
+      </main>
+    </noscript>
+
+    <div id="app" aria-live="polite"></div>
+
+    <template id="toast-template">
+      <div class="toast" role="status"></div>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
