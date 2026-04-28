@@ -1,3 +1,6 @@
+import { state, loadSavedConfig, saveConfig, clearSaved, getSavedToken, getSavedImgChestToken } from "./state.js";
+import { render, setBusy, toast, errorMessage } from "./ui.js";
+import { escapeHtml, attr } from "./utils.js";
 import { GitHubClient, githubPath, rawGitHubUrl } from "./github.js";
 import {
   countGroups,
@@ -12,70 +15,6 @@ import {
   validateManifest,
 } from "./cubari.js";
 import { extractImgChestLinksFromText, scrapeImgChestAlbum } from "./imgchest.js";
-
-const STORAGE_KEY = "adder-pages:v1";
-const TOKEN_KEY = "adder-pages:token";
-const IMG_TOKEN_KEY = "adder-pages:imgchest-token";
-const FINE_GRAINED_TOKEN_URL =
-  "https://github.com/settings/personal-access-tokens/new?name=Adder%20Pages&description=Editar%20JSONs%20Cubari%20via%20Adder%20Pages&expires_in=90&contents=write";
-
-const app = document.querySelector("#app");
-const state = {
-  client: null,
-  config: null,
-  files: [],
-  current: null,
-  search: "",
-  busy: false,
-};
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function attr(value) {
-  return escapeHtml(value).replace(/`/g, "&#096;");
-}
-
-function render(markup) {
-  app.innerHTML = `<div class="app-shell">${markup}</div>`;
-}
-
-function setBusy(isBusy) {
-  state.busy = isBusy;
-  document.querySelectorAll("button, input, textarea, select").forEach((element) => {
-    if (element.dataset.keepEnabled === "true") return;
-    if (element.matches("button")) element.disabled = isBusy;
-  });
-}
-
-function toast(message, type = "") {
-  let wrap = document.querySelector(".toast-wrap");
-  if (!wrap) {
-    wrap = document.createElement("div");
-    wrap.className = "toast-wrap";
-    document.body.appendChild(wrap);
-  }
-  const node = document.createElement("div");
-  node.className = `toast ${type}`.trim();
-  node.textContent = message;
-  wrap.appendChild(node);
-  setTimeout(() => node.remove(), 4200);
-}
-
-function errorMessage(error) {
-  if (!error) return "Erro desconhecido.";
-  if (error.status === 401) return "Token inválido ou expirado. Confira o Personal Access Token.";
-  if (error.status === 403) return "Acesso negado. Confira se o token tem permissão de leitura/escrita no repositório.";
-  if (error.status === 404) return "Repositório, branch, pasta ou arquivo não encontrado.";
-  if (error.status === 409) return "Conflito ao salvar. Atualize a lista e tente novamente.";
-  return error.message || String(error);
-}
 
 function loadSavedConfig() {
   try {
