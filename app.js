@@ -283,7 +283,7 @@ function renderConnect(prefill = {}) {
       </form>
     </section>
   `);
-
+  
   document.querySelector("#back-home-btn").addEventListener("click", renderLanding);
   document.querySelector("#clear-saved-btn").addEventListener("click", () => {
     clearSaved();
