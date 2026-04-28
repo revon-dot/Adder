@@ -165,5 +165,5 @@ export function buildCubariGistUrl({ owner, repo, branch, path }) {
   const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
   if (!owner || !repo || !branch || !cleanPath) return "";
   const payload = `${owner}/${repo}/${branch}/${cleanPath}`;
-  return `https://cubari.moe/read/gist/${encodeURIComponent(encodeBase64Unicode(payload))}/`;
+  return `https://gist.cubari.moe/${encodeURIComponent(encodeBase64Unicode(payload))}/`;
 }
