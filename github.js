@@ -36,15 +36,6 @@ export function encodeBase64Unicode(text) {
   return btoa(binary);
 }
 
-export function rawGitHubUrl({ owner, repo, branch, path }) {
-  const encodedPath = String(path || "")
-    .split("/")
-    .filter(Boolean)
-    .map(encodeURIComponent)
-    .join("/");
-  return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${encodedPath}`;
-}
-
 export class GitHubClient {
   constructor(token) {
     this.token = String(token || "").trim();
