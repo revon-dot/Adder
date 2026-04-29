@@ -1,4 +1,3 @@
-import { state, STORAGE_KEY, TOKEN_KEY, IMG_TOKEN_KEY } from "../state.js";
 import { loadSavedConfig, getSavedToken, getSavedImgChestToken } from "../state.js";
 import { render } from "../ui.js";
 import { escapeHtml } from "../utils.js";
