@@ -59,20 +59,20 @@ export function renderEditorPage(current, manifest) {
         <div class="field group editor-main-fields">
           <label class="field">
             <span>${t("fileName")}</span>
-            <input name="fileName" value="${attr(current.name)}" placeholder="manga.json" />
+            <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" />
             <p class="hint">${t("fileNameHint")}</p>
           </label>
           <label class="field">
             <span>${t("title")}</span>
-            <input name="title" value="${attr(manifest.title)}" placeholder="${attr(t("title"))}" />
+            <input name="title" value="${attr(manifest.title)}" placeholder="${attr(t("mangaTitlePlaceholder"))}" />
           </label>
           <label class="field">
             <span>${t("artist")}</span>
-            <input name="artist" value="${attr(manifest.artist)}" placeholder="${attr(t("artist"))}" />
+            <input name="artist" value="${attr(manifest.artist)}" placeholder="${attr(t("artistPlaceholder"))}" />
           </label>
           <label class="field">
             <span>${t("author")}</span>
-            <input name="author" value="${attr(manifest.author)}" placeholder="${attr(t("author"))}" />
+            <input name="author" value="${attr(manifest.author)}" placeholder="${attr(t("authorPlaceholder"))}" />
           </label>
           <label class="field">
             <span>${t("cover")}</span>
