@@ -11,7 +11,7 @@ import {
   sortChapterEntries, 
   prettyJson 
 } from "../cubari.js";
-import { collectManifestFromEditor } from "../helpers.js";
+import { collectManifestFromEditor } from "../editor-collector.js";
 import { repoLabel, ensureClient } from "../repo.js";
 import { showJsonModal, showValidationModal, showAddChapterModal } from "../modals.js";
 import { scrapeImgChestAlbum, extractImgChestLinksFromText } from "../imgchest.js";
