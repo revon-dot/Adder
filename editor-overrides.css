@@ -26,6 +26,23 @@
   min-width: 170px;
 }
 
+.chapter-drawer .drawer-form {
+  padding-top: 10px;
+}
+
+.chapter-meta-grid {
+  margin-top: 4px;
+}
+
+.chapter-images-tools {
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.chapter-drawer .drawer-section-title {
+  margin-top: 10px;
+}
+
 @media (max-width: 900px) {
   .editor-form-block {
     margin-bottom: 24px;
