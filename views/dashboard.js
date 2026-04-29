@@ -9,7 +9,10 @@ export async function loadDashboard(navigateToDashboard) {
   try {
     const client = ensureClient();
     const config = state.config;
-    const jsonFiles = await client.listJsonFiles(config);
+    const jsonFiles = await client.listJsonFiles({
+      ...config,
+      path: config.jsonPath,
+    });
     const loaded = [];
 
     for (const file of jsonFiles) {
@@ -57,12 +60,14 @@ function renderLoading(text = "Carregando...") {
 export function renderDashboard(navigateToEditor, navigateToConnect) {
   const totalChapters = state.files.reduce((sum, file) => sum + (file.data ? Object.keys(file.data.chapters || {}).length : 0), 0);
   const totalImages = state.files.reduce((sum, file) => sum + (file.data ? countImages(file.data) : 0), 0);
-  const filtered = state.files.filter((file) => {
-    const query = state.search.trim().toLowerCase();
-    if (!query) return true;
-    const title = file.data?.title || file.name;
-    return `${title} ${file.name}`.toLowerCase().includes(query);
-  });
+  const query = state.search.trim().toLowerCase();
+  const filtered = state.files
+    .map((file, index) => ({ file, index }))
+    .filter(({ file }) => {
+      if (!query) return true;
+      const title = file.data?.title || file.name;
+      return `${title} ${file.name}`.toLowerCase().includes(query);
+    });
 
   render(`
     <header class="dashboard-header dashboard-compact">
@@ -96,11 +101,12 @@ export function renderDashboard(navigateToEditor, navigateToConnect) {
         <span class="status-pill">${filtered.length} / ${state.files.length} JSONs</span>
       </div>
 
-      ${filtered.length ? `<div class="cards-grid">${filtered.map((file, i) => renderMangaCard(file, i)).join("")}</div>` : renderEmptyDashboard()}
+      ${filtered.length ? `<div class="cards-grid">${filtered.map(({ file, index }) => renderMangaCard(file, index)).join("")}</div>` : renderEmptyDashboard()}
     </section>
   `);
 
   document.querySelector("#new-manga-btn").addEventListener("click", () => navigateToEditor(null));
+  document.querySelector("#empty-new-btn")?.addEventListener("click", () => navigateToEditor(null));
   document.querySelector("#refresh-btn").addEventListener("click", async () => {
     try {
       setBusy(true);
@@ -117,20 +123,20 @@ export function renderDashboard(navigateToEditor, navigateToConnect) {
     renderDashboard(navigateToEditor, navigateToConnect);
   });
 
-   document.querySelectorAll("[data-open-file]").forEach((button) => {
-     button.addEventListener("click", () => {
-       const file = state.files[Number(button.dataset.openFile)];
-       if (file?.data) navigateToEditor(file);
-     });
-   });
+  document.querySelectorAll("[data-open-file]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const file = state.files[Number(button.dataset.openFile)];
+      if (file?.data) navigateToEditor(file);
+    });
+  });
 
-   document.querySelectorAll("[data-copy-cubari]").forEach((button) => {
-     button.addEventListener("click", async () => {
-       const file = state.files[Number(button.dataset.copyCubari)];
-       if (!file) return;
-       await copyText(cubariUrlForPath(file.path));
-     });
-   });
+  document.querySelectorAll("[data-copy-cubari]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const file = state.files[Number(button.dataset.copyCubari)];
+      if (!file) return;
+      await copyText(cubariUrlForPath(file.path));
+    });
+  });
 }
 
 function renderEmptyDashboard() {
@@ -141,7 +147,6 @@ function renderEmptyDashboard() {
       <button class="btn primary" id="empty-new-btn">Criar primeiro JSON</button>
     </div>
   `;
-  // Add listener for empty-new-btn if needed
 }
 
 function renderMangaCard(file, index) {
@@ -160,10 +165,10 @@ function renderMangaCard(file, index) {
         <p class="card-meta">${escapeHtml(file.name)}</p>
         ${error}
         <p class="card-meta">${chapters} capítulos · ${images} imagens</p>
-         <div class="card-actions">
-           <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
-           <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
-         </div>
+        <div class="card-actions">
+          <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
+          <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
+        </div>
       </div>
     </article>
   `;
