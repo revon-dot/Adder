@@ -22,7 +22,7 @@ function renderSavedLinks(current) {
       <div class="row-actions">
         ${githubUrl ? `<a class="btn ghost small" href="${attr(githubUrl)}" target="_blank" rel="noreferrer">${t("openGithub")}</a>` : ""}
         ${cubariUrl ? `<button class="btn ghost small" type="button" id="copy-editor-cubari-btn" data-cubari-url="${attr(cubariUrl)}">${t("copyCubari")}</button>` : ""}
-        ${current.downloadUrl ? `<button class="btn ghost small" type="button" id="copy-editor-raw-btn" data-raw-url="${attr(current.downloadUrl)}">${t("copyRaw")}</button>` : ""}
+        <button class="btn danger small" type="button" id="delete-work-btn">${t("deleteWork")}</button>
       </div>
     </section>
   `;
