@@ -1,7 +1,7 @@
 import { state, getSavedImgChestToken } from "../state.js";
 import { render, setBusy, toast, errorMessage } from "../ui.js";
 import { escapeHtml, attr } from "../utils.js";
-import { githubPath, rawGitHubUrl } from "../github.js";
+import { githubPath } from "../github.js";
 import { 
   countGroups, 
   countImages, 
@@ -14,8 +14,6 @@ import {
 import { 
   repoLabel, 
   ensureClient, 
-  cubariUrlForPath, 
-  copyText, 
   collectManifestFromEditor 
 } from "../helpers.js";
 import { showJsonModal, showValidationModal, showAddChapterModal } from "../modals.js";
