@@ -3,6 +3,7 @@ import { render } from "../ui.js";
 import { githubPath } from "../github.js";
 import { emptyManifest, normalizeManifest } from "../cubari.js";
 import { collectManifestFromEditor } from "../editor-collector.js";
+import { copyText } from "../clipboard.js";
 import { showJsonModal, showAddChapterModal } from "../modals.js";
 import { renderChapterCard } from "./editor-renderers.js";
 import { saveCurrentEditor } from "./editor-save.js";
@@ -31,6 +32,13 @@ function hasUnsavedChanges() {
 function confirmLeaveEditor() {
   if (!hasUnsavedChanges()) return true;
   return confirm("Você tem alterações não salvas. Sair mesmo assim?");
+}
+
+function bindCopyButton(selector, dataKey) {
+  document.querySelector(selector)?.addEventListener("click", (event) => {
+    const value = event.currentTarget.dataset[dataKey];
+    if (value) copyText(value);
+  });
 }
 
 export function openEditor(file, navigateToDashboard) {
@@ -79,6 +87,9 @@ function bindEditorEvents(navigateToDashboard) {
         event.returnValue = "";
       }
     : null;
+
+  bindCopyButton("#copy-editor-cubari-btn", "cubariUrl");
+  bindCopyButton("#copy-editor-raw-btn", "rawUrl");
 
   document.querySelector("#save-btn")?.addEventListener("click", () => saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot));
   document.querySelector("#preview-json-btn")?.addEventListener("click", () => {
