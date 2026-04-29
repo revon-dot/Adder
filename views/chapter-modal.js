@@ -16,7 +16,7 @@ function renderGroupEditor(groupName = "", images = []) {
           <span>Nome do grupo</span>
           <input data-modal-group-name value="${attr(groupName)}" placeholder="vazio = grupo sem nome" />
         </label>
-        <button class="btn danger small" type="button" data-modal-remove-group>Remover</button>
+        <button class="btn danger small subtle-danger" type="button" data-modal-remove-group>Remover</button>
       </div>
       <div class="imgchest-tools compact-imgchest-tools">
         <label class="field imgchest-url-field">
@@ -59,9 +59,10 @@ function collectChapterFromModal(form) {
   return { number, chapter };
 }
 
-export function showChapterEditModal({ number, chapter, onSave }) {
+export function showChapterEditModal({ number = "", chapter = emptyChapter(), onSave, mode = "edit" }) {
   const safeChapter = { ...emptyChapter(), ...(chapter || {}) };
   const groupEntries = Object.entries(safeChapter.groups || { "": [] });
+  const isNew = mode === "create";
   const modal = document.createElement("div");
   modal.className = "drawer-backdrop";
   modal.innerHTML = `
@@ -69,7 +70,7 @@ export function showChapterEditModal({ number, chapter, onSave }) {
       <div class="drawer-header">
         <div>
           <p class="kicker">Capítulo</p>
-          <h2>Editar ${escapeHtml(number || "novo")}</h2>
+          <h2>${isNew ? "Novo capítulo" : `Editar ${escapeHtml(number)}`}</h2>
         </div>
         <button class="btn ghost small" type="button" data-close-modal>Fechar</button>
       </div>
@@ -103,7 +104,7 @@ export function showChapterEditModal({ number, chapter, onSave }) {
         </div>
 
         <div class="drawer-actions">
-          <button class="btn primary" type="submit">Salvar capítulo</button>
+          <button class="btn primary" type="submit">${isNew ? "Criar capítulo" : "Salvar capítulo"}</button>
           <button class="btn ghost" type="button" data-close-modal>Cancelar</button>
         </div>
       </form>
