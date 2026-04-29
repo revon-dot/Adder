@@ -41,6 +41,14 @@ function bindCopyButton(selector, dataKey) {
   });
 }
 
+function chapterEventOptions(navigateToDashboard) {
+  return {
+    updateEditorStats,
+    renderEditor,
+    navigateToDashboard,
+  };
+}
+
 export function openEditor(file, navigateToDashboard) {
   if (!file) {
     const data = emptyManifest();
@@ -96,13 +104,12 @@ function bindEditorEvents(navigateToDashboard) {
     const result = collectManifestFromEditor();
     if (result) showJsonModal(result.manifest, result.validation);
   });
-  document.querySelector("#add-chapter-btn")?.addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, updateEditorStats), updateEditorStats));
+  document.querySelector("#add-chapter-btn")?.addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, chapterEventOptions(navigateToDashboard)), updateEditorStats));
 
   const coverInput = document.querySelector("input[name='cover']");
   coverInput?.addEventListener("input", () => updateEditorStats());
-  document.querySelector("#editor-form")?.addEventListener("input", updateEditorStats);
-  document.querySelector("#chapters-list")?.addEventListener("input", updateEditorStats);
+  document.querySelector("#editor-form")?.addEventListener("input", () => updateEditorStats({ skipCoverPreview: true }));
 
-  bindChapterButtons(document, updateEditorStats);
+  bindChapterButtons(document, chapterEventOptions(navigateToDashboard));
   updateEditorStats();
 }
