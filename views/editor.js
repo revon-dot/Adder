@@ -370,12 +370,20 @@ async function saveCurrentEditor(navigateToDashboard) {
    const oldPath = state.current.path;
    const desiredPath = githubPath.joinPath(state.config.jsonPath, fileName);
    const isRenamingExisting = !state.current.isNew && oldPath !== desiredPath;
+   const existingTarget = state.files.find((file) => file.path === desiredPath);
+   const isOverwritingDifferentFile = Boolean(existingTarget && existingTarget.path !== oldPath);
 
    if (isRenamingExisting) {
-     const ok = confirm("Você mudou o nome do arquivo. O Adder Pages vai criar/atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?");
+     const ok = confirm("Você mudou o nome do arquivo. O Adder Pages vai criar ou atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?");
      if (!ok) return;
    }
 
+   if (isOverwritingDifferentFile) {
+     const ok = confirm(`Já existe um arquivo chamado ${fileName}. Salvar vai substituir esse JSON. Continuar?`);
+     if (!ok) return;
+   }
+
+   const targetSha = existingTarget?.sha || (!state.current.isNew && !isRenamingExisting ? state.current.sha : undefined);
    const message = `${state.current.isNew ? "Create" : "Update"} ${fileName} via Adder Pages`;
 
    try {
@@ -385,7 +393,7 @@ async function saveCurrentEditor(navigateToDashboard) {
        path: desiredPath,
        text: prettyJson(manifest),
        message,
-       sha: isRenamingExisting || state.current.isNew ? undefined : state.current.sha,
+       sha: targetSha,
      });
 
      state.current = {
