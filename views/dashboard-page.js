@@ -27,6 +27,7 @@ export function renderDashboardPage() {
   const { totalChapters } = getDashboardStats();
   const filtered = getFilteredDashboardFiles();
   const worksLabel = label("Obras", "Works");
+  const chaptersLabel = label("Capítulos", "Chapters");
 
   return `
     <header class="dashboard-header dashboard-compact">
@@ -42,7 +43,7 @@ export function renderDashboardPage() {
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
           <span class="mini-stat"><strong>${state.files.length}</strong> ${worksLabel}</span>
-          <span class="mini-stat"><strong>${totalChapters}</strong> ${t("chapters")}</span>
+          <span class="mini-stat"><strong>${totalChapters}</strong> ${chaptersLabel}</span>
         </div>
       </div>
 
@@ -86,7 +87,7 @@ function renderMangaList(filtered) {
           <tr>
             <th>${t("work")}</th>
             <th>${t("file")}</th>
-            <th>${t("chapters")}</th>
+            <th>${label("Capítulos", "Chapters")}</th>
             <th>${t("actions")}</th>
           </tr>
         </thead>
@@ -113,7 +114,7 @@ function renderMangaRow(file, index) {
           <div>
             <strong>${escapeHtml(title)}</strong>
             ${error}
-            <span class="manga-mobile-meta">${chapters} ${t("chapters")}</span>
+            <span class="manga-mobile-meta">${chapters} ${label("Capítulos", "Chapters")}</span>
           </div>
         </div>
       </td>
