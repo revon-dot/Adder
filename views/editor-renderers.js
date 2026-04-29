@@ -23,13 +23,33 @@ function filteredChapterEntries(manifest) {
 
 function getChapterPage(entries) {
   const pageSize = state.editor.chapterPageSize;
-  const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
+  const effectivePageSize = pageSize === "all" ? Math.max(1, entries.length) : Number(pageSize) || 10;
+  const totalPages = Math.max(1, Math.ceil(entries.length / effectivePageSize));
   state.editor.chapterPage = Math.min(Math.max(1, state.editor.chapterPage), totalPages);
-  const start = (state.editor.chapterPage - 1) * pageSize;
+  const start = (state.editor.chapterPage - 1) * effectivePageSize;
   return {
     totalPages,
-    visibleEntries: entries.slice(start, start + pageSize),
+    visibleEntries: entries.slice(start, start + effectivePageSize),
   };
+}
+
+function renderChapterPageSizeSelect() {
+  const current = String(state.editor.chapterPageSize || 10);
+  const options = [
+    ["10", "10"],
+    ["25", "25"],
+    ["50", "50"],
+    ["all", document.documentElement.lang === "en" ? "All" : "Todos"],
+  ];
+
+  return `
+    <label class="chapter-page-size-control">
+      <span>${document.documentElement.lang === "en" ? "Per page" : "Por página"}</span>
+      <select id="chapter-page-size-select" data-keep-enabled="true">
+        ${options.map(([value, label]) => `<option value="${attr(value)}" ${current === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+      </select>
+    </label>
+  `;
 }
 
 export function renderChapterCards(manifest) {
@@ -50,7 +70,10 @@ export function renderChapterCards(manifest) {
     <div class="chapter-manager">
       <div class="chapter-toolbar-light">
         <input id="chapter-search-input" data-keep-enabled="true" value="${attr(state.editor.chapterSearch)}" placeholder="${attr(t("chapterSearchPlaceholder"))}" />
-        <span class="chapter-count">${entries.length} / ${allEntries.length} ${t("chapters")}</span>
+        <div class="chapter-toolbar-meta">
+          ${renderChapterPageSizeSelect()}
+          <span class="chapter-count">${entries.length} / ${allEntries.length} ${t("chapters")}</span>
+        </div>
       </div>
 
       ${visibleEntries.length ? renderChapterTable(visibleEntries) : renderNoResults()}
