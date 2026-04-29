@@ -10,6 +10,8 @@ import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
+import { ensureClient } from "../repo.js";
+import { setBusy, toast, errorMessage } from "../ui.js";
 
 function editorSnapshot(fileName, manifest) {
   return JSON.stringify({
@@ -90,6 +92,31 @@ function addChapterWithDrawer(navigateToDashboard) {
   });
 }
 
+async function deleteCurrentWork(navigateToDashboard) {
+  if (!state.current || state.current.isNew || !state.current.path || !state.current.sha) return;
+  const ok = confirm(t("deleteWorkConfirm", { name: state.current.name || state.current.path }));
+  if (!ok) return;
+
+  try {
+    setBusy(true);
+    const client = ensureClient();
+    await client.deleteFile({
+      ...state.config,
+      path: state.current.path,
+      sha: state.current.sha,
+      message: `Delete ${state.current.name} via Adder Pages`,
+    });
+    state.files = state.files.filter((file) => file.path !== state.current.path);
+    state.current = null;
+    toast(t("workDeleted"), "success");
+    navigateToDashboard();
+  } catch (error) {
+    toast(errorMessage(error), "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
 export function openEditor(file, navigateToDashboard) {
   if (!file) {
     const data = emptyManifest();
@@ -140,7 +167,7 @@ function bindEditorEvents(navigateToDashboard) {
     : null;
 
   bindCopyButton("#copy-editor-cubari-btn", "cubariUrl");
-  bindCopyButton("#copy-editor-raw-btn", "rawUrl");
+  document.querySelector("#delete-work-btn")?.addEventListener("click", () => deleteCurrentWork(navigateToDashboard));
 
   document.querySelector("#save-btn")?.addEventListener("click", () => {
     syncAutoFileName();
