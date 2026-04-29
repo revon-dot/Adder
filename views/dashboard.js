@@ -60,6 +60,12 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
     state.files = loaded;
     navigateToDashboard();
   } catch (error) {
+    if (error?.status === 404 || error?.status === 409) {
+      state.files = [];
+      navigateToDashboard();
+      return;
+    }
+
     renderLoadError(error, navigateToDashboard, navigateToConnect, navigateToEditor);
   }
 }
