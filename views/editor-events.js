@@ -19,7 +19,9 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
 
   scope.querySelector("#chapter-page-size-select")?.addEventListener("change", (event) => {
     const value = event.currentTarget.value;
+    if (!value) return;
     state.editor.chapterPageSize = value === "all" ? "all" : Number(value) || 10;
+    state.editor.chapterPageSizeSelected = true;
     state.editor.chapterPage = 1;
     rerender(renderEditor, navigateToDashboard, updateEditorStats);
   });
