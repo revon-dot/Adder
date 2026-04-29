@@ -48,7 +48,7 @@ export function renderEditorPage(current, manifest) {
 
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
-          <span class="mini-stat"><strong id="stat-chapters">0</strong> ${t("chapters")}</span>
+          <span class="mini-stat"><strong id="stat-chapters">0</strong> ${label("Capítulos", "Chapters")}</span>
         </div>
       </div>
 
