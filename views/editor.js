@@ -4,12 +4,12 @@ import { githubPath } from "../github.js";
 import { emptyManifest, emptyChapter, normalizeManifest } from "../cubari.js";
 import { collectManifestFromEditor, getNextChapterNumber } from "../editor-collector.js";
 import { copyText } from "../clipboard.js";
-import { showJsonModal } from "../modals.js";
 import { saveCurrentEditor } from "./editor-save.js";
 import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
+import { bindLanguageToggle, t } from "../i18n.js";
 
 function editorSnapshot(fileName, manifest) {
   return JSON.stringify({
@@ -31,7 +31,7 @@ function hasUnsavedChanges() {
 
 function confirmLeaveEditor() {
   if (!hasUnsavedChanges()) return true;
-  return confirm("Você tem alterações não salvas. Sair mesmo assim?");
+  return confirm(t("savedChangesWarning"));
 }
 
 function goToDashboard(navigateToDashboard) {
@@ -61,7 +61,7 @@ function addChapterWithDrawer(navigateToDashboard) {
     onSave: ({ number, chapter }) => {
       if (!state.current.data.chapters) state.current.data.chapters = {};
       if (state.current.data.chapters[number]) {
-        const ok = confirm(`Já existe um capítulo ${number}. Substituir?`);
+        const ok = confirm(t("replaceExistingChapter", { number }));
         if (!ok) return;
       }
       state.current.data.chapters[number] = chapter;
@@ -106,7 +106,7 @@ export function renderEditor(navigateToDashboard) {
 }
 
 function bindEditorEvents(navigateToDashboard) {
-  document.querySelector("#back-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
+  bindLanguageToggle(() => renderEditor(navigateToDashboard));
   document.querySelector("#logo-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
 
   window.onbeforeunload = hasUnsavedChanges()
@@ -120,10 +120,6 @@ function bindEditorEvents(navigateToDashboard) {
   bindCopyButton("#copy-editor-raw-btn", "rawUrl");
 
   document.querySelector("#save-btn")?.addEventListener("click", () => saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot));
-  document.querySelector("#preview-json-btn")?.addEventListener("click", () => {
-    const result = collectManifestFromEditor();
-    if (result) showJsonModal(result.manifest, result.validation);
-  });
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
 
   const coverInput = document.querySelector("input[name='cover']");
