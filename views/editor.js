@@ -1,15 +1,15 @@
 import { state } from "../state.js";
 import { render } from "../ui.js";
 import { githubPath } from "../github.js";
-import { emptyManifest, normalizeManifest } from "../cubari.js";
-import { collectManifestFromEditor } from "../editor-collector.js";
+import { emptyManifest, emptyChapter, normalizeManifest } from "../cubari.js";
+import { collectManifestFromEditor, getNextChapterNumber } from "../editor-collector.js";
 import { copyText } from "../clipboard.js";
-import { showJsonModal, showAddChapterModal } from "../modals.js";
-import { renderChapterCard } from "./editor-renderers.js";
+import { showJsonModal } from "../modals.js";
 import { saveCurrentEditor } from "./editor-save.js";
 import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
+import { showChapterEditModal } from "./chapter-modal.js";
 
 function editorSnapshot(fileName, manifest) {
   return JSON.stringify({
@@ -47,6 +47,23 @@ function chapterEventOptions(navigateToDashboard) {
     renderEditor,
     navigateToDashboard,
   };
+}
+
+function addChapterWithDrawer(navigateToDashboard) {
+  showChapterEditModal({
+    mode: "create",
+    number: getNextChapterNumber(),
+    chapter: emptyChapter(),
+    onSave: ({ number, chapter }) => {
+      if (!state.current.data.chapters) state.current.data.chapters = {};
+      if (state.current.data.chapters[number]) {
+        const ok = confirm(`Já existe um capítulo ${number}. Substituir?`);
+        if (!ok) return;
+      }
+      state.current.data.chapters[number] = chapter;
+      renderEditor(navigateToDashboard);
+    },
+  });
 }
 
 export function openEditor(file, navigateToDashboard) {
@@ -104,7 +121,7 @@ function bindEditorEvents(navigateToDashboard) {
     const result = collectManifestFromEditor();
     if (result) showJsonModal(result.manifest, result.validation);
   });
-  document.querySelector("#add-chapter-btn")?.addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, chapterEventOptions(navigateToDashboard)), updateEditorStats));
+  document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
 
   const coverInput = document.querySelector("input[name='cover']");
   coverInput?.addEventListener("input", () => updateEditorStats());
