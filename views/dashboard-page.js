@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { escapeHtml, attr } from "../utils.js";
 import { countImages } from "../cubari.js";
 import { repoLabel } from "../repo.js";
+import { renderLanguageToggle, t } from "../i18n.js";
 
 export function getDashboardStats() {
   const totalChapters = state.files.reduce((sum, file) => sum + (file.data ? Object.keys(file.data.chapters || {}).length : 0), 0);
@@ -30,30 +31,31 @@ export function renderDashboardPage() {
         <div class="dashboard-title-wrap">
           <div class="dashboard-logo favicon-logo"><img src="./favicon.svg" alt="Adder" /></div>
           <div>
-            <p class="kicker">Dashboard</p>
-            <h2>Biblioteca</h2>
+            <p class="kicker">${t("dashboard")}</p>
+            <h2>${t("library")}</h2>
           </div>
         </div>
 
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
-          <span class="mini-stat"><strong>${state.files.length}</strong> JSONs</span>
-          <span class="mini-stat"><strong>${totalChapters}</strong> capítulos</span>
-          <span class="mini-stat"><strong>${totalImages}</strong> imagens</span>
+          <span class="mini-stat"><strong>${state.files.length}</strong> ${t("jsons")}</span>
+          <span class="mini-stat"><strong>${totalChapters}</strong> ${t("chapters")}</span>
+          <span class="mini-stat"><strong>${totalImages}</strong> ${t("images")}</span>
         </div>
       </div>
 
       <div class="toolbar dashboard-toolbar">
-        <button class="btn primary" id="new-manga-btn">Novo mangá</button>
-        <button class="btn ghost" id="refresh-btn">Atualizar</button>
-        <button class="btn ghost" id="change-repo-btn">Trocar repo</button>
+        <button class="btn primary" id="new-manga-btn">${t("newManga")}</button>
+        <button class="btn ghost" id="refresh-btn">${t("refresh")}</button>
+        <button class="btn ghost" id="change-repo-btn">${t("changeRepo")}</button>
+        ${renderLanguageToggle("dashboard-language")}
       </div>
     </header>
 
     <section class="panel dashboard-panel">
       <div class="search-bar">
-        <input id="search-input" data-keep-enabled="true" value="${attr(state.search)}" placeholder="Buscar por título ou arquivo..." />
-        <span class="status-pill">${filtered.length} / ${state.files.length} JSONs</span>
+        <input id="search-input" data-keep-enabled="true" value="${attr(state.search)}" placeholder="${attr(t("searchPlaceholder"))}" />
+        <span class="status-pill">${filtered.length} / ${state.files.length} ${t("jsons")}</span>
       </div>
 
       ${filtered.length ? renderMangaList(filtered) : renderEmptyDashboard()}
@@ -64,11 +66,11 @@ export function renderDashboardPage() {
 function renderEmptyDashboard() {
   return `
     <div class="empty-state">
-      <h3>Nenhum JSON encontrado</h3>
-      <p>Não encontramos obras nesta pasta do repositório. Crie um novo mangá para começar ou revise a pasta configurada.</p>
+      <h3>${t("noJsonFound")}</h3>
+      <p>${t("noJsonFoundDescription")}</p>
       <div class="row-actions" style="justify-content: center;">
-        <button class="btn primary" id="empty-new-btn">Novo mangá</button>
-        <button class="btn ghost" id="empty-change-repo-btn">Trocar repo</button>
+        <button class="btn primary" id="empty-new-btn">${t("newManga")}</button>
+        <button class="btn ghost" id="empty-change-repo-btn">${t("changeRepo")}</button>
       </div>
     </div>
   `;
@@ -80,11 +82,11 @@ function renderMangaList(filtered) {
       <table class="manga-table">
         <thead>
           <tr>
-            <th>Obra</th>
-            <th>Arquivo</th>
-            <th>Capítulos</th>
-            <th>Imagens</th>
-            <th>Ações</th>
+            <th>${t("work")}</th>
+            <th>${t("file")}</th>
+            <th>${t("chapters")}</th>
+            <th>${t("images")}</th>
+            <th>${t("actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -111,7 +113,7 @@ function renderMangaRow(file, index) {
           <div>
             <strong>${escapeHtml(title)}</strong>
             ${error}
-            <span class="manga-mobile-meta">${chapters} capítulos · ${images} imagens</span>
+            <span class="manga-mobile-meta">${chapters} ${t("chapters")} · ${images} ${t("images")}</span>
           </div>
         </div>
       </td>
@@ -120,8 +122,8 @@ function renderMangaRow(file, index) {
       <td>${images}</td>
       <td>
         <div class="manga-actions compact-actions">
-          <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
-          <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
+          <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>${t("edit")}</button>
+          <button class="btn ghost small" data-copy-cubari="${index}">${t("copyCubari")}</button>
         </div>
       </td>
     </tr>
