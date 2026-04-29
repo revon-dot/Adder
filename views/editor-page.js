@@ -11,9 +11,7 @@ function backIcon() {
   `;
 }
 
-function label(key, pt, en) {
-  const value = t(key);
-  if (value !== key) return value;
+function label(pt, en) {
   return document.documentElement.lang === "en" ? en : pt;
 }
 
@@ -28,7 +26,7 @@ function renderSavedLinks(current) {
       <div class="row-actions">
         ${githubUrl ? `<a class="btn ghost small" href="${attr(githubUrl)}" target="_blank" rel="noreferrer">${t("openGithub")}</a>` : ""}
         ${cubariUrl ? `<button class="btn ghost small" type="button" id="copy-editor-cubari-btn" data-cubari-url="${attr(cubariUrl)}">${t("copyCubari")}</button>` : ""}
-        <button class="btn danger small" type="button" id="delete-work-btn">${label("deleteWork", "Deletar obra", "Delete work")}</button>
+        <button class="btn danger small" type="button" id="delete-work-btn">${label("Deletar Obra", "Delete Work")}</button>
       </div>
     </section>
   `;
@@ -44,15 +42,13 @@ export function renderEditorPage(current, manifest) {
           <button class="dashboard-logo logo-button back-logo-button" type="button" id="logo-dashboard-btn" aria-label="${t("back")}">${backIcon()}</button>
           <div>
             <p class="kicker">${t("editor")}</p>
-            <h2>${escapeHtml(manifest.title || t("newManga"))}</h2>
+            <h2>${escapeHtml(manifest.title || label("Novo Mangá", "New Manga"))}</h2>
           </div>
         </div>
 
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
           <span class="mini-stat"><strong id="stat-chapters">0</strong> ${t("chapters")}</span>
-          <span class="mini-stat"><strong id="stat-groups">0</strong> ${t("groups")}</span>
-          <span class="mini-stat"><strong id="stat-images">0</strong> ${t("images")}</span>
         </div>
       </div>
 
@@ -66,7 +62,7 @@ export function renderEditorPage(current, manifest) {
       <form id="editor-form" class="form-grid editor-form-block">
         <div class="field group editor-main-fields">
           <label class="field">
-            <span>${t("fileName")}</span>
+            <span>${label("Nome do Arquivo", "File Name")}</span>
             <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" ${fileNameReadonly} />
             <p class="hint">${current.isNew ? t("fileNameAutoHint") : t("fileNameHint")}</p>
           </label>
@@ -97,7 +93,7 @@ export function renderEditorPage(current, manifest) {
       </form>
       
       <div class="editor-chapter-actions">
-        <button class="btn primary" id="add-chapter-btn">${t("addChapter")}</button>
+        <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
       </div>
       
       <section class="panel" id="chapters-list">
