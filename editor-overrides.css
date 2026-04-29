@@ -1,5 +1,16 @@
 .editor-form-block {
+  align-items: start;
   margin-bottom: 28px;
+}
+
+.editor-form-block > .group {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.editor-form-block label.field {
+  gap: 7px;
 }
 
 .editor-chapter-actions {
@@ -18,6 +29,10 @@
 @media (max-width: 900px) {
   .editor-form-block {
     margin-bottom: 24px;
+  }
+
+  .editor-form-block > .group {
+    gap: 14px;
   }
 
   .editor-chapter-actions {
