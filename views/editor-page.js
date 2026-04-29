@@ -78,7 +78,7 @@ export function renderEditorPage(current, manifest) {
           </label>
         </div>
 
-        <div class="field group editor-description-group span-2">
+        <div class="field group editor-description-group">
           <label class="field">
             <span>Descrição</span>
             <textarea name="description" placeholder="Descrição do mangá">${attr(manifest.description)}</textarea>
