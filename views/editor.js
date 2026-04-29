@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { render, toast } from "../ui.js";
+import { render } from "../ui.js";
 import { escapeHtml, attr } from "../utils.js";
 import { githubPath } from "../github.js";
 import { countGroups, countImages, emptyManifest, normalizeManifest } from "../cubari.js";
@@ -7,8 +7,8 @@ import { collectManifestFromEditor } from "../editor-collector.js";
 import { repoLabel } from "../repo.js";
 import { showJsonModal, showAddChapterModal } from "../modals.js";
 import { renderChapterCards, renderChapterCard } from "./editor-renderers.js";
-import { importImgChestIntoGroup, extractImgChestFromTextarea } from "./editor-imgchest-tools.js";
 import { saveCurrentEditor } from "./editor-save.js";
+import { bindChapterButtons } from "./editor-events.js";
 
 export function openEditor(file, navigateToDashboard) {
   if (!file) {
@@ -123,65 +123,15 @@ function bindEditorEvents(navigateToDashboard) {
     const result = collectManifestFromEditor();
     if (result) showJsonModal(result.manifest);
   });
-  document.querySelector("#add-chapter-btn").addEventListener("click", () => showAddChapterModal(renderChapterCard, bindChapterButtons, updateEditorStats));
+  document.querySelector("#add-chapter-btn").addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, updateEditorStats), updateEditorStats));
 
   const coverInput = document.querySelector("input[name='cover']");
   coverInput?.addEventListener("input", () => updateEditorStats());
   document.querySelector("#editor-form")?.addEventListener("input", updateEditorStats);
   document.querySelector("#chapters-list")?.addEventListener("input", updateEditorStats);
 
-  bindChapterButtons();
+  bindChapterButtons(document, updateEditorStats);
   updateEditorStats();
-}
-
-export function bindChapterButtons(scope = document) {
-  scope.querySelectorAll("[data-toggle-chapter]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const card = button.closest("[data-chapter-card]");
-      const content = card.querySelector("[data-groups-list]");
-      content.classList.toggle("collapsed");
-      button.textContent = content.classList.contains("collapsed") ? "Expandir" : "Alternar";
-    });
-  });
-
-  scope.querySelectorAll("[data-remove-chapter]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      if (!confirm("Remover este capítulo?")) return;
-      button.closest("[data-chapter-card]")?.remove();
-      updateEditorStats();
-    });
-  });
-
-  scope.querySelectorAll("[data-remove-group]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const chapter = button.closest("[data-chapter-card]");
-      const groups = chapter.querySelectorAll("[data-group-card]");
-      if (groups.length <= 1) {
-        toast("O capítulo precisa ter pelo menos um grupo.", "error");
-        return;
-      }
-      button.closest("[data-group-card]")?.remove();
-      updateEditorStats();
-    });
-  });
-
-  scope.querySelectorAll("[data-import-imgchest]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", async () => importImgChestIntoGroup(button, updateEditorStats));
-  });
-
-  scope.querySelectorAll("[data-extract-imgchest]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => extractImgChestFromTextarea(button, updateEditorStats));
-  });
 }
 
 export function updateEditorStats() {
