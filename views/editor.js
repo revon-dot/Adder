@@ -34,6 +34,10 @@ function confirmLeaveEditor() {
   return confirm("Você tem alterações não salvas. Sair mesmo assim?");
 }
 
+function goToDashboard(navigateToDashboard) {
+  if (confirmLeaveEditor()) navigateToDashboard();
+}
+
 function bindCopyButton(selector, dataKey) {
   document.querySelector(selector)?.addEventListener("click", (event) => {
     const value = event.currentTarget.dataset[dataKey];
@@ -102,9 +106,8 @@ export function renderEditor(navigateToDashboard) {
 }
 
 function bindEditorEvents(navigateToDashboard) {
-  document.querySelector("#back-dashboard-btn")?.addEventListener("click", () => {
-    if (confirmLeaveEditor()) navigateToDashboard();
-  });
+  document.querySelector("#back-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
+  document.querySelector("#logo-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
 
   window.onbeforeunload = hasUnsavedChanges()
     ? (event) => {
