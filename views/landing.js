@@ -10,42 +10,42 @@ function showHowItWorksModal() {
     <section class="modal-card how-it-works-modal">
       <div class="panel-header">
         <div>
-          <p class="kicker">Guia rápido</p>
-          <h2>Como o Adder Pages funciona</h2>
-          <p>O Adder Pages é um editor visual de JSONs compatíveis com Cubari. Ele roda no navegador e salva os arquivos direto no seu repositório GitHub.</p>
+          <p class="kicker">${t("howGuideKicker")}</p>
+          <h2>${t("howTitle")}</h2>
+          <p>${t("howIntro")}</p>
         </div>
-        <button class="btn ghost small" type="button" data-close-modal>Fechar</button>
+        <button class="btn ghost small" type="button" data-close-modal>${t("close")}</button>
       </div>
 
       <div class="how-steps">
         <article>
-          <strong>1. Conecte seu GitHub</strong>
-          <p>Informe o dono do repositório, nome do repositório, branch, pasta dos JSONs e um Personal Access Token com permissão de leitura e escrita em conteúdo.</p>
+          <strong>${t("howStep1Title")}</strong>
+          <p>${t("howStep1Text")}</p>
         </article>
         <article>
-          <strong>2. Carregue sua biblioteca</strong>
-          <p>O dashboard lista os JSONs encontrados na pasta configurada. Cada obra pode ser aberta para edição.</p>
+          <strong>${t("howStep2Title")}</strong>
+          <p>${t("howStep2Text")}</p>
         </article>
         <article>
-          <strong>3. Crie ou edite uma obra</strong>
-          <p>Preencha título, autor, artista, capa e descrição. Depois adicione capítulos usando o editor lateral.</p>
+          <strong>${t("howStep3Title")}</strong>
+          <p>${t("howStep3Text")}</p>
         </article>
         <article>
-          <strong>4. Adicione capítulos e imagens</strong>
-          <p>Cada capítulo tem número, volume, grupo, título, data de atualização e URLs das imagens. Você pode importar URLs de um álbum ImgChest.</p>
+          <strong>${t("howStep4Title")}</strong>
+          <p>${t("howStep4Text")}</p>
         </article>
         <article>
-          <strong>5. Salve no GitHub</strong>
-          <p>Ao salvar, o JSON é atualizado no repositório configurado. O Adder não hospeda imagens nem publica conteúdo sozinho.</p>
+          <strong>${t("howStep5Title")}</strong>
+          <p>${t("howStep5Text")}</p>
         </article>
         <article>
-          <strong>6. Copie o link Cubari</strong>
-          <p>Depois de salvar, você pode copiar o link Cubari gerado para abrir a leitura usando o JSON salvo no GitHub.</p>
+          <strong>${t("howStep6Title")}</strong>
+          <p>${t("howStep6Text")}</p>
         </article>
       </div>
 
       <div class="notice">
-        <strong>Observações:</strong> repositórios privados podem não funcionar no Cubari; ImgChest pode exigir token por causa de CORS; o token do GitHub deve ser usado apenas em computador confiável.
+        <strong>${t("howNotesLabel")}</strong> ${t("howNotesText")}
       </div>
     </section>
   `;
