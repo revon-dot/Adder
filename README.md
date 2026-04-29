@@ -1,6 +1,8 @@
 # Adder Pages
 
-Editor visual e estático para gerenciar JSONs compatíveis com Cubari, feito para rodar direto no GitHub Pages.
+## Português
+
+Editor visual e estático para gerenciar JSONs compatíveis com Cubari, feito para rodar direto no navegador.
 
 O Adder Pages não usa backend, FastAPI, banco de dados nem servidor próprio. Ele é um site feito com HTML, CSS e JavaScript puro. O carregamento, a criação, a edição e a exclusão dos arquivos acontecem diretamente no repositório configurado por meio da API do GitHub.
 
@@ -138,43 +140,6 @@ Adder/
 
 A aplicação usa módulos JavaScript nativos. O arquivo `app.js` é o ponto de entrada e coordena a navegação entre landing page, conexão, dashboard e editor.
 
-## Como publicar no GitHub Pages
-
-1. Crie um repositório no GitHub.
-2. Coloque os arquivos do projeto na raiz do repositório.
-3. Faça commit e push:
-
-```bash
-git init
-git add .
-git commit -m "Initial Adder Pages"
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/NOME-DO-REPO.git
-git push -u origin main
-```
-
-4. No GitHub, vá em:
-
-```txt
-Settings → Pages → Build and deployment
-```
-
-5. Escolha:
-
-```txt
-Source: Deploy from a branch
-Branch: main
-Folder: / root
-```
-
-6. Salve.
-
-O site ficará disponível em um endereço parecido com:
-
-```txt
-https://SEU-USUARIO.github.io/NOME-DO-REPO/
-```
-
 ## Como criar o token do GitHub
 
 Use um **Fine-grained Personal Access Token** limitado ao repositório onde estão os JSONs.
@@ -217,16 +182,16 @@ Se você mudar o nome de um arquivo já existente, o app cria ou atualiza o novo
 
 O app gera automaticamente o link final do Cubari a partir do caminho raw do GitHub.
 
-Exemplo de caminho:
+Exemplo de caminho genérico:
 
 ```txt
-raw/revon-dot/OP/main/HxH.json
+raw/OWNER/REPOSITORY/BRANCH/path/to/manga.json
 ```
 
 Esse caminho é convertido em uma URL Cubari no formato:
 
 ```txt
-https://cubari.moe/read/gist/cmF3L3Jldm9uLWRvdC9PUC9tYWluL0h4SC5qc29u/
+https://cubari.moe/read/gist/<base64-do-caminho-raw>/
 ```
 
 No dashboard, use **Copiar Cubari**.
@@ -237,7 +202,7 @@ Dentro do editor, a opção de copiar Cubari aparece depois que o arquivo já ex
 
 O Adder Pages pode importar imagens de álbuns ImgChest para preencher automaticamente a lista de URLs de um capítulo.
 
-Como o site roda no GitHub Pages, ele não consegue executar Python, Playwright ou scripts locais. Por isso, a importação funciona assim:
+Como o site roda no navegador, ele não consegue executar Python, Playwright ou scripts locais. Por isso, a importação funciona assim:
 
 1. Primeiro, tenta usar o endpoint oficial do ImgChest quando você informa um **ImgChest API token**.
 2. Se não houver token, tenta ler a página pública do álbum diretamente pelo navegador.
@@ -363,6 +328,332 @@ http://localhost:8000/
 
 Também é possível usar qualquer servidor estático, como Live Server, `npx serve` ou equivalente.
 
-## Licença
+---
 
-Defina aqui a licença do projeto, se necessário.
+## English
+
+Visual static editor for managing Cubari-compatible JSON files, designed to run directly in the browser.
+
+Adder Pages does not use a backend, FastAPI, database, or custom server. It is a plain HTML, CSS, and JavaScript site. Loading, creating, editing, and deleting files happens directly in the configured repository through the GitHub API.
+
+## Overview
+
+The goal of Adder Pages is to make it easier to maintain Cubari-format works without editing JSON manually.
+
+With it, you connect a GitHub repository, choose the folder where the JSON files are stored, edit works visually, and save everything back to GitHub with automatic commits.
+
+## What it does
+
+- Connects to a GitHub repository using a Personal Access Token.
+- Lets you configure the owner, repository, branch, and folder where the JSON files are stored.
+- Lists `.json` files found in the configured folder.
+- Displays works in a library/table with cover, title, file name, chapter count, and actions.
+- Lets you search works by title or file name.
+- Creates new Cubari-compatible JSON files.
+- Edits the main work fields:
+  - `title`
+  - `description`
+  - `author`
+  - `artist`
+  - `cover`
+  - `chapters`
+- Automatically generates the file name for new works from the title.
+- Lets you add, edit, and remove chapters.
+- Lets you configure chapter number, title, volume, group, timestamp, and image URLs.
+- Lets you paste multiple image URLs, one per line.
+- Imports images from ImgChest albums using the official ImgChest API when you provide an ImgChest API token.
+- Tries to read the public ImgChest page as a fallback when possible.
+- Saves the JSON to GitHub with an automatic commit.
+- Lets you delete an existing work/JSON file from the repository.
+- Generates and copies the final Cubari URL.
+- Warns you when leaving the editor with unsaved changes.
+- Supports Brazilian Portuguese and American English.
+- Saves configuration in the browser when the user chooses to remember the data.
+
+## Site flow
+
+The app is organized into four main steps.
+
+### 1. Landing page
+
+The first screen introduces Adder Pages and provides the main shortcuts:
+
+- start a new connection;
+- load saved data from this browser;
+- open the quick “How it works” guide;
+- switch the interface language between PT and EN.
+
+### 2. GitHub connection
+
+On the connection screen, you provide:
+
+- GitHub username;
+- Personal Access Token;
+- repository owner;
+- repository name;
+- branch;
+- folder where the JSON files are stored;
+- optional ImgChest API token.
+
+The site itself includes a guide for creating a Fine-grained Personal Access Token with the minimum required permission.
+
+### 3. Dashboard / Library
+
+After connecting, the dashboard loads the JSON files found in the configured folder and displays a library with:
+
+- cover;
+- work title;
+- file name;
+- chapter count;
+- edit button;
+- copy Cubari link button.
+
+You can also create a new work, refresh the list, search by title/file, or change the configured repository.
+
+### 4. Editor
+
+In the editor, you can change the main work data and manage chapters.
+
+The editor lets you:
+
+- edit title, description, artist, author, and cover;
+- add a chapter;
+- edit an existing chapter;
+- remove a chapter;
+- import images from an ImgChest album;
+- save changes to GitHub;
+- open the saved file on GitHub;
+- copy the Cubari link;
+- delete the work from the repository.
+
+If there are unsaved changes and you try to leave the editor, the app shows a warning before abandoning the screen.
+
+## Current file structure
+
+```txt
+Adder/
+├─ index.html
+├─ styles.css
+├─ editor-overrides.css
+├─ logo-overrides.css
+├─ favicon.svg
+├─ app.js
+├─ github.js
+├─ repo.js
+├─ cubari.js
+├─ imgchest.js
+├─ state.js
+├─ ui.js
+├─ utils.js
+├─ i18n.js
+├─ clipboard.js
+├─ modals.js
+├─ editor-collector.js
+├─ editor-stats.js
+├─ views/
+│  ├─ landing.js
+│  ├─ connect.js
+│  ├─ connect-page.js
+│  ├─ connect-events.js
+│  ├─ dashboard.js
+│  ├─ dashboard-page.js
+│  ├─ dashboard-events.js
+│  ├─ editor.js
+│  ├─ editor-page.js
+│  ├─ editor-events.js
+│  ├─ editor-renderers.js
+│  ├─ editor-save.js
+│  └─ chapter-modal.js
+├─ README.md
+└─ .gitignore
+```
+
+The application uses native JavaScript modules. The `app.js` file is the entry point and coordinates navigation between the landing page, connection screen, dashboard, and editor.
+
+## How to create the GitHub token
+
+Use a **Fine-grained Personal Access Token** limited to the repository where the JSON files are stored.
+
+Step by step:
+
+1. Sign in to your GitHub account.
+2. Go to `Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token`.
+3. In `Token name`, use something like `Adder Pages`.
+4. In `Expiration`, choose an expiration date, for example `90 days`.
+5. In `Resource owner`, choose the repository owner.
+6. In `Repository access`, choose `Only select repositories` and select the JSON repository.
+7. In `Repository permissions`, set:
+
+```txt
+Contents: Read and write
+Metadata: Read-only
+```
+
+8. Click `Generate token`.
+9. Copy the token and paste it into the `Personal Access Token` field in Adder Pages.
+
+GitHub only shows the token once. Store it somewhere safe if you need to reuse it.
+
+## About saving to GitHub
+
+When you click **Save to GitHub**, the app builds the updated JSON and sends it to the repository using the GitHub API.
+
+The generated commit uses messages such as:
+
+```txt
+Create file-name.json via Adder Pages
+Update file-name.json via Adder Pages
+Delete file-name.json via Adder Pages
+```
+
+If you change the name of an existing file, the app creates or updates the new file, but it does not automatically delete the old one. This avoids accidental file deletion.
+
+## Final Cubari URL
+
+The app automatically generates the final Cubari link from the GitHub raw path.
+
+Generic path example:
+
+```txt
+raw/OWNER/REPOSITORY/BRANCH/path/to/manga.json
+```
+
+This path is converted into a Cubari URL in this format:
+
+```txt
+https://cubari.moe/read/gist/<base64-of-raw-path>/
+```
+
+On the dashboard, use **Copy Cubari**.
+
+Inside the editor, the copy Cubari option appears after the file already exists on GitHub.
+
+## ImgChest
+
+Adder Pages can import images from ImgChest albums to automatically fill a chapter's image URL list.
+
+Because the site runs in the browser, it cannot execute Python, Playwright, or local scripts. For that reason, importing works like this:
+
+1. First, it tries to use the official ImgChest endpoint when you provide an **ImgChest API token**.
+2. If there is no token, it tries to read the public album page directly through the browser.
+3. If the browser blocks the request because of CORS, you will need to use an ImgChest API token or manually paste the image URLs.
+
+The ImgChest API token is different from the GitHub Personal Access Token.
+
+### Flow for adding a chapter with ImgChest
+
+1. Open a work in the editor.
+2. Click **Add Chapter**.
+3. Fill in number, title, volume, and group.
+4. Paste the ImgChest album URL.
+5. Click **Import ImgChest**.
+6. Check the imported URLs.
+7. Click **Create Chapter** or **Save Chapter**.
+8. Click **Save to GitHub**.
+
+## Expected JSON format
+
+Basic example of a compatible JSON:
+
+```json
+{
+  "title": "Manga Name",
+  "description": "Description",
+  "artist": "Artist",
+  "author": "Author",
+  "cover": "https://example.com/cover.jpg",
+  "chapters": {
+    "1": {
+      "title": "Chapter 1",
+      "volume": "",
+      "last_updated": "1710000000",
+      "groups": {
+        "": [
+          "https://example.com/001.jpg",
+          "https://example.com/002.jpg"
+        ]
+      }
+    }
+  }
+}
+```
+
+### Main fields
+
+| Field | Description |
+|---|---|
+| `title` | Work title. |
+| `description` | Work description. |
+| `artist` | Artist name. |
+| `author` | Author name. |
+| `cover` | Cover image URL. |
+| `chapters` | Object containing the work's chapters. |
+
+### Chapter fields
+
+| Field | Description |
+|---|---|
+| `title` | Chapter title. |
+| `volume` | Chapter volume. Can be empty. |
+| `last_updated` | Unix timestamp in seconds. |
+| `groups` | Reading groups and their respective image URLs. |
+
+The group name can be empty:
+
+```json
+"groups": {
+  "": [
+    "https://example.com/001.jpg"
+  ]
+}
+```
+
+## Languages
+
+The interface supports:
+
+- Brazilian Portuguese;
+- American English.
+
+The selected language is saved in the browser.
+
+## Data saved in the browser
+
+Adder Pages can save some information locally in the browser to make future use easier:
+
+- repository owner;
+- repository name;
+- branch;
+- JSON folder;
+- selected language;
+- GitHub token, if you choose to remember it;
+- ImgChest token, if you choose to remember it.
+
+Only choose to remember tokens on trusted computers.
+
+## Important notes
+
+- Adder Pages does not host images.
+- The app only saves image URLs in the JSON.
+- The app does not publish chapters by itself; it edits the JSON file used by Cubari.
+- The GitHub token needs read and write permission for repository contents.
+- If ImgChest fails because of CORS, use an ImgChest API token or paste the URLs manually.
+- Changes only reach the repository after clicking **Save to GitHub**.
+
+## Local development
+
+Because the project uses native JavaScript modules, it is better to run it with a simple local server instead of opening `index.html` directly in the browser.
+
+Example with Python:
+
+```bash
+python -m http.server 8000
+```
+
+Then open:
+
+```txt
+http://localhost:8000/
+```
+
+You can also use any static server, such as Live Server, `npx serve`, or an equivalent tool.
