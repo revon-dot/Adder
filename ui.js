@@ -1,5 +1,4 @@
 import { state } from "./state.js";
-import { escapeHtml, attr } from "./utils.js";
 
 const app = document.querySelector("#app");
 
