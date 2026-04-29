@@ -17,6 +17,13 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
     input?.focus();
   });
 
+  scope.querySelector("#chapter-page-size-select")?.addEventListener("change", (event) => {
+    const value = event.currentTarget.value;
+    state.editor.chapterPageSize = value === "all" ? "all" : Number(value) || 10;
+    state.editor.chapterPage = 1;
+    rerender(renderEditor, navigateToDashboard, updateEditorStats);
+  });
+
   scope.querySelectorAll("[data-chapter-page]").forEach((button) => {
     if (button.dataset.bound === "true") return;
     button.dataset.bound = "true";
