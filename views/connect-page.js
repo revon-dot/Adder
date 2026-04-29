@@ -2,6 +2,10 @@ import { FINE_GRAINED_TOKEN_URL, state } from "../state.js";
 import { attr } from "../utils.js";
 import { renderLanguageToggle, t } from "../i18n.js";
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 function backIcon() {
   return `
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -19,7 +23,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
           <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="${t("back")}">${backIcon()}</button>
           <div>
             <p class="kicker">${t("connection")}</p>
-            <h2>${t("connectRepo")}</h2>
+            <h2>${label("Conectar ao Repositório", "Connect Repository")}</h2>
           </div>
         </div>
       </div>
@@ -81,7 +85,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
           <input name="repo" value="${attr(prefill.repo || "")}" placeholder="${attr(t("repositoryNamePlaceholder"))}" required />
         </label>
 
-        <label class="field">
+        <label class="field branch-field">
           <span>${t("branch")}</span>
           <input name="branch" value="${attr(prefill.branch || "main")}" placeholder="${attr(t("branchPlaceholder"))}" required />
         </label>
@@ -93,7 +97,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
         </label>
 
         <details class="guide-card span-2">
-          <summary>${t("optionalImgChest")}</summary>
+          <summary>${label("ImgChest Scraper", "ImgChest Scraper")}</summary>
           <div class="guide-content">
             <p>${t("imgChestHelp")}</p>
             <label class="field">
@@ -115,7 +119,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
 
         <div class="form-actions span-2">
           <button class="btn primary" type="submit">${t("connect")}</button>
-          <button class="btn ghost" type="button" id="clear-saved-btn">${t("clearSavedData")}</button>
+          <button class="btn ghost" type="button" id="clear-saved-btn">${label("Limpar Dados Salvos", "Clear Saved Data")}</button>
         </div>
       </form>
     </section>
