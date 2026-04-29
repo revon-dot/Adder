@@ -10,6 +10,7 @@ export const state = {
   files: [],
   current: null,
   search: "",
+  lang: localStorage.getItem("adder-pages:lang") || "pt-BR",
   editor: {
     chapterSearch: "",
     chapterPage: 1,
