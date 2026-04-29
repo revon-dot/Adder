@@ -34,22 +34,22 @@ function getChapterPage(entries) {
 }
 
 function renderChapterPageSizeSelect() {
-  const current = String(state.editor.chapterPageSize || 10);
   const isEnglish = document.documentElement.lang === "en";
-  const prefix = isEnglish ? "Show" : "Exibir";
-  const allLabel = isEnglish ? "all" : "todos";
+  const placeholder = isEnglish ? "Show" : "Exibir";
+  const allLabel = isEnglish ? "All" : "Todos";
   const ariaLabel = isEnglish ? "Chapters per page" : "Capítulos por página";
   const options = [
-    ["10", `${prefix} 10`],
-    ["25", `${prefix} 25`],
-    ["50", `${prefix} 50`],
-    ["all", `${prefix} ${allLabel}`],
+    ["", placeholder],
+    ["10", "10"],
+    ["25", "25"],
+    ["50", "50"],
+    ["all", allLabel],
   ];
 
   return `
     <label class="chapter-page-size-control">
       <select id="chapter-page-size-select" data-keep-enabled="true" aria-label="${attr(ariaLabel)}">
-        ${options.map(([value, label]) => `<option value="${attr(value)}" ${current === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+        ${options.map(([value, label]) => `<option value="${attr(value)}" ${value === "" ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
       </select>
     </label>
   `;
