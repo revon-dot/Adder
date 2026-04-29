@@ -1,6 +1,7 @@
 import { escapeHtml, attr } from "./utils.js";
 import { prettyJson } from "./cubari.js";
-import { copyText, collectManifestFromEditor, getNextChapterNumber } from "./helpers.js";
+import { collectManifestFromEditor, getNextChapterNumber } from "./helpers.js";
+import { copyText } from "./clipboard.js";
 import { toast, setBusy } from "./ui.js";
 import { state, getSavedImgChestToken } from "./state.js";
 
