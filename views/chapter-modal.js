@@ -45,9 +45,14 @@ function collectChapterFromModal(form) {
     last_updated: String(formData.get("last_updated") || Math.floor(Date.now() / 1000)).trim(),
     groups: {},
   };
+  const duplicateGroups = new Set();
+  const seenGroups = new Set();
 
   form.querySelectorAll("[data-modal-group]").forEach((group) => {
     const groupName = group.querySelector("[data-modal-group-name]")?.value.trim() || "";
+    if (seenGroups.has(groupName)) duplicateGroups.add(groupName || "sem nome");
+    seenGroups.add(groupName);
+
     const imagesText = group.querySelector("[data-modal-group-images]")?.value || "";
     chapter.groups[groupName] = imagesText
       .split(/\r?\n/)
@@ -56,7 +61,7 @@ function collectChapterFromModal(form) {
   });
 
   if (!Object.keys(chapter.groups).length) chapter.groups[""] = [];
-  return { number, chapter };
+  return { number, chapter, duplicateGroups: [...duplicateGroups] };
 }
 
 export function showChapterEditModal({ number = "", chapter = emptyChapter(), onSave, mode = "edit" }) {
@@ -182,6 +187,10 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
     const result = collectChapterFromModal(form);
     if (!result.number) {
       toast("Informe o número do capítulo.", "error");
+      return;
+    }
+    if (result.duplicateGroups.length) {
+      toast(`Há grupos duplicados: ${result.duplicateGroups.join(", ")}. Use nomes diferentes antes de salvar.`, "error");
       return;
     }
     onSave(result);
