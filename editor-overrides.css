@@ -46,6 +46,10 @@
   min-width: 170px;
 }
 
+.editor-footer-links {
+  margin-top: 28px;
+}
+
 .chapter-drawer .drawer-form {
   padding-top: 10px;
 }
@@ -91,5 +95,9 @@
 
   .editor-chapter-actions .btn {
     width: 100%;
+  }
+
+  .editor-footer-links {
+    margin-top: 22px;
   }
 }
