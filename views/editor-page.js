@@ -1,6 +1,23 @@
 import { escapeHtml, attr } from "../utils.js";
-import { repoLabel } from "../repo.js";
+import { repoLabel, cubariUrlForPath } from "../repo.js";
 import { renderChapterCards } from "./editor-renderers.js";
+
+function renderSavedLinks(current) {
+  if (current.isNew || !current.path) return "";
+  const cubariUrl = cubariUrlForPath(current.path);
+  const githubUrl = current.htmlUrl || "";
+  return `
+    <section class="notice editor-links" id="saved-links-panel">
+      <strong>Arquivo salvo:</strong>
+      <span>${escapeHtml(current.path)}</span>
+      <div class="row-actions">
+        ${githubUrl ? `<a class="btn ghost small" href="${attr(githubUrl)}" target="_blank" rel="noreferrer">Abrir no GitHub</a>` : ""}
+        ${cubariUrl ? `<button class="btn ghost small" type="button" id="copy-editor-cubari-btn" data-cubari-url="${attr(cubariUrl)}">Copiar Cubari</button>` : ""}
+        ${current.downloadUrl ? `<button class="btn ghost small" type="button" id="copy-editor-raw-btn" data-raw-url="${attr(current.downloadUrl)}">Copiar raw</button>` : ""}
+      </div>
+    </section>
+  `;
+}
 
 export function renderEditorPage(current, manifest) {
   return `
@@ -30,6 +47,7 @@ export function renderEditorPage(current, manifest) {
     </header>
     
     <section class="panel editor-panel">
+      ${renderSavedLinks(current)}
       <form id="editor-form" class="form-grid">
         <div class="field group">
           <label class="field">
