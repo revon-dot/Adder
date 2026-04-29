@@ -56,11 +56,11 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
         <div class="drawer-grid chapter-meta-grid">
           <label class="field">
             <span>${t("number")}</span>
-            <input name="number" value="${attr(number)}" placeholder="1" required />
+            <input name="number" value="${attr(number)}" placeholder="${attr(t("chapterNumberPlaceholder"))}" required />
           </label>
           <label class="field">
             <span>${t("volume")}</span>
-            <input name="volume" value="${attr(safeChapter.volume)}" placeholder="${attr(t("optional"))}" />
+            <input name="volume" value="${attr(safeChapter.volume)}" placeholder="${attr(t("volumePlaceholder"))}" />
           </label>
           <label class="field">
             <span>${t("group")}</span>
@@ -68,7 +68,7 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
           </label>
           <label class="field">
             <span>${t("lastUpdated")}</span>
-            <input name="last_updated" value="${attr(safeChapter.last_updated || Math.floor(Date.now() / 1000))}" placeholder="timestamp" />
+            <input name="last_updated" value="${attr(safeChapter.last_updated || Math.floor(Date.now() / 1000))}" placeholder="${attr(t("timestampPlaceholder"))}" />
           </label>
         </div>
 
@@ -84,7 +84,7 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
         <div class="imgchest-tools compact-imgchest-tools chapter-images-tools">
           <label class="field imgchest-url-field">
             <span>${t("imgChestAlbumUrl")}</span>
-            <input data-modal-imgchest-url placeholder="https://imgchest.com/p/..." />
+            <input data-modal-imgchest-url placeholder="${attr(t("imgChestAlbumPlaceholder"))}" />
           </label>
           <div class="inline-tools">
             <button class="btn ghost small" type="button" data-modal-import-imgchest>${t("importImgChest")}</button>
