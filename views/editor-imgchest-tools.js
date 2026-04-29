@@ -2,11 +2,16 @@ import { state, getSavedImgChestToken } from "../state.js";
 import { setBusy, toast } from "../ui.js";
 import { scrapeImgChestAlbum, extractImgChestLinksFromText } from "../imgchest.js";
 
-export async function importImgChestIntoGroup(button, updateEditorStats) {
+export async function importImgChestIntoGroup(button, updateEditorStats = () => {}) {
   const groupCard = button.closest("[data-group-card]");
   const input = groupCard?.querySelector("[data-imgchest-url]");
   const textarea = groupCard?.querySelector("[data-group-images]");
   const albumUrl = input?.value.trim();
+
+  if (!groupCard || !textarea) {
+    toast("Não consegui encontrar o grupo deste capítulo.", "error");
+    return;
+  }
 
   if (!albumUrl) {
     toast("Cole a URL do álbum ImgChest primeiro.", "error");
@@ -40,10 +45,15 @@ export async function importImgChestIntoGroup(button, updateEditorStats) {
   }
 }
 
-export function extractImgChestFromTextarea(button, updateEditorStats) {
+export function extractImgChestFromTextarea(button, updateEditorStats = () => {}) {
   const groupCard = button.closest("[data-group-card]");
   const textarea = groupCard?.querySelector("[data-group-images]");
-  const links = extractImgChestLinksFromText(textarea?.value || "");
+  if (!groupCard || !textarea) {
+    toast("Não consegui encontrar o campo de imagens deste grupo.", "error");
+    return;
+  }
+
+  const links = extractImgChestLinksFromText(textarea.value || "");
   if (!links.length) {
     toast("Não encontrei URLs cdn.imgchest.com no texto colado.", "error");
     return;
