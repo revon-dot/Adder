@@ -25,15 +25,6 @@ export function cubariUrlForPath(path) {
   });
 }
 
-export async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast("Copiado.", "success");
-  } catch {
-    toast("Não consegui copiar automaticamente.", "error");
-  }
-}
-
 export function collectManifestFromEditor(options = {}) {
   const form = document.querySelector("#editor-form");
   if (!form) return null;
