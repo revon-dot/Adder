@@ -11,6 +11,40 @@
   border-radius: inherit;
 }
 
+.language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.lang-option {
+  min-height: 34px;
+  min-width: 42px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.lang-option.active {
+  background: rgba(79, 140, 255, 0.18);
+  color: #fff;
+}
+
+.landing-language-wrap {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 2;
+}
+
 .manga-list-wrap {
   overflow-x: auto;
   border: 1px solid var(--line-soft);
@@ -108,6 +142,15 @@
   margin-top: 3px;
   color: var(--muted-2);
   font-size: 0.82rem;
+}
+
+@media (max-width: 900px) {
+  .landing-language-wrap {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 22px;
+  }
 }
 
 @media (max-width: 700px) {
