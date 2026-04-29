@@ -8,6 +8,7 @@ const translations = {
     languageLabel: "Idioma",
     languagePt: "PT",
     languageEn: "EN",
+    back: "Voltar",
     landingKicker: "Adder Pages",
     landingTitle: "Editor Cubari direto no GitHub Pages.",
     landingLead: "Uma versão estática do Adder: você edita JSONs de mangás, capítulos, grupos e imagens pelo navegador, e salva direto no repositório usando a API do GitHub.",
@@ -61,6 +62,8 @@ const translations = {
     rememberGithubToken: "Lembrar token do GitHub neste navegador",
     connect: "Conectar",
     clearSavedData: "Limpar dados salvos",
+    savedDataCleared: "Dados salvos apagados.",
+    connectedRepo: "Conectado ao repositório.",
     editor: "Editor",
     saveToGithub: "Salvar no GitHub",
     fileName: "Nome do arquivo",
@@ -101,17 +104,27 @@ const translations = {
     imagesSection: "Imagens",
     imgChestAlbumUrl: "URL do álbum ImgChest",
     importImgChest: "Importar ImgChest",
+    importing: "Importando...",
     imageUrls: "URLs das imagens",
     imageUrlsPlaceholder: "Cole uma URL por linha",
     createChapter: "Criar capítulo",
     saveChapter: "Salvar capítulo",
     cancel: "Cancelar",
     remove: "Remover",
+    untitled: "Sem título",
+    savedChangesWarning: "Você tem alterações não salvas. Sair mesmo assim?",
+    replaceExistingChapter: "Já existe um capítulo {number}. Substituir?",
+    chapterNotFound: "Não consegui encontrar este capítulo para edição.",
+    removeChapterConfirm: "Remover o capítulo {number}?",
+    informChapterNumber: "Informe o número do capítulo.",
+    pasteImgChestFirst: "Cole a URL do álbum ImgChest primeiro.",
+    importedImages: "{count} imagens importadas do ImgChest.",
   },
   "en-US": {
     languageLabel: "Language",
     languagePt: "PT",
     languageEn: "EN",
+    back: "Back",
     landingKicker: "Adder Pages",
     landingTitle: "Cubari editor directly on GitHub Pages.",
     landingLead: "A static version of Adder: edit manga JSONs, chapters, groups, and images in your browser, then save directly to your repository using the GitHub API.",
@@ -165,6 +178,8 @@ const translations = {
     rememberGithubToken: "Remember GitHub token in this browser",
     connect: "Connect",
     clearSavedData: "Clear saved data",
+    savedDataCleared: "Saved data cleared.",
+    connectedRepo: "Connected to repository.",
     editor: "Editor",
     saveToGithub: "Save to GitHub",
     fileName: "File name",
@@ -205,12 +220,21 @@ const translations = {
     imagesSection: "Images",
     imgChestAlbumUrl: "ImgChest album URL",
     importImgChest: "Import ImgChest",
+    importing: "Importing...",
     imageUrls: "Image URLs",
     imageUrlsPlaceholder: "Paste one URL per line",
     createChapter: "Create chapter",
     saveChapter: "Save chapter",
     cancel: "Cancel",
     remove: "Remove",
+    untitled: "Untitled",
+    savedChangesWarning: "You have unsaved changes. Leave anyway?",
+    replaceExistingChapter: "Chapter {number} already exists. Replace it?",
+    chapterNotFound: "I couldn't find this chapter to edit.",
+    removeChapterConfirm: "Remove chapter {number}?",
+    informChapterNumber: "Enter the chapter number.",
+    pasteImgChestFirst: "Paste the ImgChest album URL first.",
+    importedImages: "{count} images imported from ImgChest.",
   },
 };
 
@@ -227,9 +251,10 @@ export function saveLanguage(lang) {
   return nextLang;
 }
 
-export function t(key) {
+export function t(key, replacements = {}) {
   const lang = LANGUAGES.includes(state.lang) ? state.lang : "pt-BR";
-  return translations[lang]?.[key] || translations["pt-BR"]?.[key] || key;
+  const value = translations[lang]?.[key] || translations["pt-BR"]?.[key] || key;
+  return Object.entries(replacements).reduce((text, [name, replacement]) => text.replaceAll(`{${name}}`, String(replacement)), value);
 }
 
 export function renderLanguageToggle(id = "language-toggle") {
