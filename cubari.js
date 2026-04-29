@@ -90,8 +90,21 @@ export function sanitizeFileName(title) {
 export function validateManifest(manifest = {}, fileName = "") {
   const errors = [];
   const warnings = [];
+  const cleanFileName = String(fileName || "").trim();
 
-  if (!String(fileName || "").trim().toLowerCase().endsWith(".json")) {
+  if (!cleanFileName) {
+    errors.push("O nome do arquivo é obrigatório.");
+  }
+
+  if (/[\\/]/.test(cleanFileName)) {
+    errors.push("O nome do arquivo não pode conter barras. Escolha apenas o nome do JSON, como manga.json.");
+  }
+
+  if (cleanFileName === "." || cleanFileName === ".." || cleanFileName.startsWith(".")) {
+    errors.push("O nome do arquivo não pode começar com ponto.");
+  }
+
+  if (!cleanFileName.toLowerCase().endsWith(".json")) {
     errors.push("O nome do arquivo precisa terminar com .json.");
   }
 
