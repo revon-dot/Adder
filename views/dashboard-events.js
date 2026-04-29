@@ -3,10 +3,14 @@ import { setBusy, toast, errorMessage } from "../ui.js";
 import { cubariUrlForPath } from "../repo.js";
 import { copyText } from "../clipboard.js";
 
+function bindClick(selector, handler) {
+  document.querySelector(selector)?.addEventListener("click", handler);
+}
+
 export function bindDashboardEvents({ navigateToEditor, navigateToConnect, renderDashboard, loadDashboard }) {
-  document.querySelector("#new-manga-btn").addEventListener("click", () => navigateToEditor(null));
-  document.querySelector("#empty-new-btn")?.addEventListener("click", () => navigateToEditor(null));
-  document.querySelector("#refresh-btn").addEventListener("click", async () => {
+  bindClick("#new-manga-btn", () => navigateToEditor(null));
+  bindClick("#empty-new-btn", () => navigateToEditor(null));
+  bindClick("#refresh-btn", async () => {
     try {
       setBusy(true);
       await loadDashboard(() => renderDashboard(navigateToEditor, navigateToConnect));
@@ -16,8 +20,9 @@ export function bindDashboardEvents({ navigateToEditor, navigateToConnect, rende
       setBusy(false);
     }
   });
-  document.querySelector("#change-repo-btn").addEventListener("click", () => navigateToConnect({ ...state.config }));
-  document.querySelector("#search-input").addEventListener("input", (event) => {
+  bindClick("#change-repo-btn", () => navigateToConnect({ ...state.config }));
+
+  document.querySelector("#search-input")?.addEventListener("input", (event) => {
     const cursorPosition = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
     state.search = event.currentTarget.value;
     renderDashboard(navigateToEditor, navigateToConnect);
@@ -30,6 +35,7 @@ export function bindDashboardEvents({ navigateToEditor, navigateToConnect, rende
     button.addEventListener("click", () => {
       const file = state.files[Number(button.dataset.openFile)];
       if (file?.data) navigateToEditor(file);
+      else toast("Este JSON não pôde ser carregado para edição.", "error");
     });
   });
 
@@ -37,7 +43,12 @@ export function bindDashboardEvents({ navigateToEditor, navigateToConnect, rende
     button.addEventListener("click", async () => {
       const file = state.files[Number(button.dataset.copyCubari)];
       if (!file) return;
-      await copyText(cubariUrlForPath(file.path));
+      const cubariUrl = cubariUrlForPath(file.path);
+      if (!cubariUrl) {
+        toast("Não consegui gerar a URL Cubari deste arquivo.", "error");
+        return;
+      }
+      await copyText(cubariUrl);
     });
   });
 }
