@@ -49,8 +49,6 @@ export function renderEditorPage(current, manifest) {
 
       <div class="toolbar dashboard-toolbar">
         <button class="btn primary" id="save-btn">Salvar no GitHub</button>
-        <button class="btn ghost" id="preview-json-btn">Pré-visualizar JSON</button>
-        <button class="btn ghost" id="back-dashboard-btn">Dashboard</button>
       </div>
     </header>
     
