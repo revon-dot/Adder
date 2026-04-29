@@ -13,12 +13,4 @@ export function updateEditorStats() {
   if (statChapters) statChapters.textContent = String(chapters);
   if (statGroups) statGroups.textContent = String(groups);
   if (statImages) statImages.textContent = String(images);
-
-  const coverValue = document.querySelector("input[name='cover']")?.value.trim();
-  const coverStatus = document.querySelector("#cover-url-status");
-  if (coverStatus) {
-    coverStatus.innerHTML = coverValue
-      ? `<strong>URL de capa preenchida.</strong><span>${coverValue}</span>`
-      : "Nenhuma URL de capa informada.";
-  }
 }
