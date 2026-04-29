@@ -4,18 +4,14 @@ import { attr } from "../utils.js";
 export function renderConnectPage(prefill = {}, imgchestToken = "") {
   const token = prefill.token || "";
   return `
-    <header class="dashboard-header dashboard-compact">
+    <header class="dashboard-header dashboard-compact connect-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <div class="dashboard-logo">A</div>
+          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="Voltar">‹</button>
           <div>
             <p class="kicker">Conexão</p>
             <h2>Conectar ao repositório</h2>
           </div>
-        </div>
-
-        <div class="toolbar dashboard-toolbar">
-          <button class="btn ghost" id="back-home-btn">Voltar</button>
         </div>
       </div>
     </header>
@@ -25,7 +21,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
         <strong>Segurança:</strong> use um fine-grained Personal Access Token limitado apenas ao repositório que você quer editar. Marque “lembrar token” só em computador confiável.
       </div>
 
-      <details class="guide-card" open>
+      <details class="guide-card">
         <summary>Como criar o Personal Access Token</summary>
         <div class="guide-content">
           <p>Use um <strong>Fine-grained token</strong>. Ele é mais seguro porque pode ficar limitado a um único repositório e só às permissões necessárias.</p>
