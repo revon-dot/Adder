@@ -82,6 +82,7 @@ label, .field-label { color: var(--text); font-weight: 750; }
 input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #0f1117; color: var(--text); outline: none; padding: 12px 13px; transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease; }
 input:focus, textarea:focus, select:focus { border-color: rgba(79, 140, 255, 0.75); box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.12); }
 textarea { min-height: 120px; resize: vertical; }
+.branch-field { align-self: start; }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); }
 .checkbox-row input { width: auto; margin-top: 4px; }
 .notice, .error-box, .success-box { padding: 14px 16px; border-radius: var(--radius-sm); line-height: 1.6; }
@@ -188,7 +189,7 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 .drawer-group { background: rgba(255, 255, 255, 0.025); box-shadow: none; }
 .compact-imgchest-tools { grid-template-columns: 1fr; }
 .compact-imgchest-tools .inline-tools { justify-content: flex-start; }
-.urls-textarea { min-height: 220px; font-size: 0.88rem; line-height: 1.45; }
+.urls-textarea { min-height: 170px; font-size: 0.88rem; line-height: 1.45; }
 .drawer-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 10px; margin: 8px -20px -20px; padding: 14px 20px; border-top: 1px solid var(--line-soft); background: #11141b; }
 
 @media (max-width: 900px) {
