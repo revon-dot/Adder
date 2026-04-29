@@ -15,6 +15,7 @@ export const state = {
     chapterSearch: "",
     chapterPage: 1,
     chapterPageSize: 10,
+    chapterPageSizeSelected: false,
   },
   busy: false,
 };
