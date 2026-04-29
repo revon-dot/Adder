@@ -1,8 +1,7 @@
-import { attr } from "../utils.js";
 import { countGroups, countImages, normalizeManifest } from "../cubari.js";
 import { state } from "../state.js";
 
-export function updateEditorStats(options = {}) {
+export function updateEditorStats() {
   const manifest = normalizeManifest(state.current?.data || {});
   const chapters = Object.keys(manifest.chapters || {}).length;
   const groups = countGroups(manifest);
@@ -15,13 +14,11 @@ export function updateEditorStats(options = {}) {
   if (statGroups) statGroups.textContent = String(groups);
   if (statImages) statImages.textContent = String(images);
 
-  if (options.skipCoverPreview) return;
-
   const coverValue = document.querySelector("input[name='cover']")?.value.trim();
-  const preview = document.querySelector("#preview-cover");
-  if (preview) {
-    preview.innerHTML = coverValue
-      ? `<img src="${attr(coverValue)}" alt="Capa" onerror="this.parentElement.innerHTML='<div class=&quot;cover-placeholder&quot;>Sem capa</div>'" />`
-      : `<div class="cover-placeholder">Sem capa</div>`;
+  const coverStatus = document.querySelector("#cover-url-status");
+  if (coverStatus) {
+    coverStatus.innerHTML = coverValue
+      ? `<strong>URL de capa preenchida.</strong><span>${coverValue}</span>`
+      : "Nenhuma URL de capa informada.";
   }
 }
