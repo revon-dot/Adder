@@ -5,6 +5,10 @@ import { scrapeImgChestAlbum } from "../imgchest.js";
 import { emptyChapter } from "../cubari.js";
 import { t } from "../i18n.js";
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 function groupToText(images = []) {
   return Array.isArray(images) ? images.join("\n") : String(images || "");
 }
@@ -67,13 +71,13 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
             <input name="groupName" value="${attr(groupName)}" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
           </label>
           <label class="field">
-            <span>${t("lastUpdated")}</span>
+            <span>${label("Última Atualização", "Last Updated")}</span>
             <input name="last_updated" value="${attr(safeChapter.last_updated || Math.floor(Date.now() / 1000))}" placeholder="${attr(t("timestampPlaceholder"))}" />
           </label>
         </div>
 
         <label class="field">
-          <span>${t("chapterTitle")}</span>
+          <span>${label("Título do Capítulo", "Chapter Title")}</span>
           <input name="title" value="${attr(safeChapter.title)}" placeholder="${attr(t("chapterTitlePlaceholder"))}" />
         </label>
 
@@ -83,7 +87,7 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
 
         <div class="imgchest-tools compact-imgchest-tools chapter-images-tools">
           <label class="field imgchest-url-field">
-            <span>${t("imgChestAlbumUrl")}</span>
+            <span>${label("URL do Álbum ImgChest", "ImgChest Album URL")}</span>
             <input data-modal-imgchest-url placeholder="${attr(t("imgChestAlbumPlaceholder"))}" />
           </label>
           <div class="inline-tools">
@@ -92,12 +96,12 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
         </div>
 
         <label class="field">
-          <span>${t("imageUrls")}</span>
+          <span>${label("URLs das Imagens", "Image URLs")}</span>
           <textarea class="urls-textarea" name="imagesText" placeholder="${attr(t("imageUrlsPlaceholder"))}">${escapeHtml(groupToText(images))}</textarea>
         </label>
 
         <div class="drawer-actions">
-          <button class="btn primary" type="submit">${isNew ? t("createChapter") : t("saveChapter")}</button>
+          <button class="btn primary" type="submit">${isNew ? t("createChapter") : label("Salvar Capítulo", "Save Chapter")}</button>
           <button class="btn ghost" type="button" data-close-modal>${t("cancel")}</button>
         </div>
       </form>
