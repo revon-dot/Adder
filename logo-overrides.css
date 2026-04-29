@@ -17,7 +17,7 @@
 }
 
 .dashboard-main {
-  gap: 16px;
+  gap: 18px;
 }
 
 .dashboard-title-wrap {
@@ -28,15 +28,26 @@
 .dashboard-title-wrap > div:last-child {
   display: grid;
   align-content: center;
-  gap: 4px;
-  min-height: 52px;
+  gap: 1px;
+  min-height: 54px;
+}
+
+.dashboard-header.dashboard-compact .kicker {
+  margin: 0;
+  line-height: 1;
+}
+
+.dashboard-header.dashboard-compact h2 {
+  margin: 0;
+  line-height: 1.03;
 }
 
 .dashboard-logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
+  width: 50px;
+  height: 50px;
+  border-radius: 17px;
   align-self: center;
+  transform: translateY(1px);
 }
 
 .favicon-logo {
@@ -52,7 +63,7 @@
 }
 
 .logo-button.back-logo-button:hover {
-  transform: translateY(-1px);
+  transform: translateY(0);
   border-color: rgba(79, 140, 255, 0.44);
   background: rgba(79, 140, 255, 0.18);
 }
@@ -63,8 +74,8 @@
 }
 
 .dashboard-status-row {
-  margin-left: 68px;
-  padding-top: 2px;
+  margin-left: 66px;
+  padding-top: 0;
   gap: 10px;
 }
 
