@@ -2,12 +2,14 @@ import { state } from "../state.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
 import { cubariUrlForPath } from "../repo.js";
 import { copyText } from "../clipboard.js";
+import { bindLanguageToggle } from "../i18n.js";
 
 function bindClick(selector, handler) {
   document.querySelector(selector)?.addEventListener("click", handler);
 }
 
 export function bindDashboardEvents({ navigateToEditor, navigateToConnect, renderDashboard, loadDashboard }) {
+  bindLanguageToggle(() => renderDashboard(navigateToEditor, navigateToConnect));
   bindClick("#new-manga-btn", () => navigateToEditor(null));
   bindClick("#empty-new-btn", () => navigateToEditor(null));
   bindClick("#empty-change-repo-btn", () => navigateToConnect({ ...state.config }));
