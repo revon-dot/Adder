@@ -1,5 +1,6 @@
 import { FINE_GRAINED_TOKEN_URL } from "../state.js";
 import { attr } from "../utils.js";
+import { renderLanguageToggle, t } from "../i18n.js";
 
 function backIcon() {
   return `
@@ -15,105 +16,137 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
     <header class="dashboard-header dashboard-compact connect-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="Voltar">${backIcon()}</button>
+          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="${t("back") || "Voltar"}">${backIcon()}</button>
           <div>
-            <p class="kicker">Conexão</p>
-            <h2>Conectar ao repositório</h2>
+            <p class="kicker">${t("connection")}</p>
+            <h2>${t("connectRepo")}</h2>
           </div>
         </div>
+      </div>
+      <div class="toolbar dashboard-toolbar">
+        ${renderLanguageToggle("connect-language")}
       </div>
     </header>
 
     <section class="panel">
       <div class="notice">
-        <strong>Segurança:</strong> use um fine-grained Personal Access Token limitado apenas ao repositório que você quer editar. Marque “lembrar token” só em computador confiável.
+        <strong>${t("security")}</strong> ${t("securityNotice")}
       </div>
 
       <details class="guide-card">
-        <summary>Como criar o Personal Access Token</summary>
+        <summary>${t("tokenGuide")}</summary>
         <div class="guide-content">
-          <p>Use um <strong>Fine-grained token</strong>. Ele é mais seguro porque pode ficar limitado a um único repositório e só às permissões necessárias.</p>
+          <p>${t("tokenGuideIntro")}</p>
 
-          <a class="btn primary guide-link" href="${FINE_GRAINED_TOKEN_URL}" target="_blank" rel="noreferrer">Abrir criação do token no GitHub</a>
+          <a class="btn primary guide-link" href="${FINE_GRAINED_TOKEN_URL}" target="_blank" rel="noreferrer">${t("openTokenCreation")}</a>
 
           <ol class="guide-steps">
-            <li>Entre na sua conta do GitHub.</li>
-            <li>Clique no botão acima ou vá em <strong>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</strong>.</li>
-            <li>Em <strong>Token name</strong>, coloque algo como <code>Adder Pages</code>.</li>
-            <li>Em <strong>Expiration</strong>, escolha uma validade. Exemplo: <code>90 days</code>.</li>
-            <li>Em <strong>Resource owner</strong>, escolha o dono do repositório: sua conta ou organização.</li>
-            <li>Em <strong>Repository access</strong>, escolha <strong>Only select repositories</strong> e selecione apenas o repositório dos JSONs.</li>
-            <li>Em <strong>Repository permissions</strong>, procure <strong>Contents</strong> e marque <strong>Read and write</strong>. O <strong>Metadata</strong> fica como leitura automaticamente.</li>
-            <li>Clique em <strong>Generate token</strong>.</li>
-            <li>Copie o token gerado e cole no campo <strong>Personal Access Token</strong> abaixo. O GitHub só mostra esse token uma vez.</li>
+            <li>${stateLangStep(1)}</li>
+            <li>${stateLangStep(2)}</li>
+            <li>${stateLangStep(3)}</li>
+            <li>${stateLangStep(4)}</li>
+            <li>${stateLangStep(5)}</li>
+            <li>${stateLangStep(6)}</li>
+            <li>${stateLangStep(7)}</li>
+            <li>${stateLangStep(8)}</li>
+            <li>${stateLangStep(9)}</li>
           </ol>
 
           <div class="copy-box">
-            <strong>Permissão mínima para este site:</strong> Repository permissions → Contents → Read and write.
+            <strong>${t("minPermission")}</strong> Repository permissions → Contents → Read and write.
           </div>
         </div>
       </details>
 
       <form id="connect-form" class="form-grid" autocomplete="off">
         <label class="field">
-          <span>GitHub username</span>
+          <span>${t("githubUsername")}</span>
           <input name="username" value="${attr(prefill.username || prefill.owner || "")}" placeholder="seuusuario" required />
-          <p class="hint">Usado só como identificação visual. O owner do repositório pode ser diferente.</p>
+          <p class="hint">${t("usernameHint")}</p>
         </label>
 
         <label class="field">
-          <span>Personal Access Token</span>
+          <span>${t("personalAccessToken")}</span>
           <input name="token" value="${attr(token)}" placeholder="github_pat_..." type="password" required />
-          <p class="hint">Precisa conseguir ler e escrever conteúdo no repositório.</p>
+          <p class="hint">${t("tokenHint")}</p>
         </label>
 
         <label class="field">
-          <span>Repository owner</span>
+          <span>${t("repositoryOwner")}</span>
           <input name="owner" value="${attr(prefill.owner || prefill.username || "")}" placeholder="seuusuario-ou-org" required />
         </label>
 
         <label class="field">
-          <span>Repository name</span>
+          <span>${t("repositoryName")}</span>
           <input name="repo" value="${attr(prefill.repo || "")}" placeholder="meus-jsons-cubari" required />
         </label>
 
         <label class="field">
-          <span>Branch</span>
+          <span>${t("branch")}</span>
           <input name="branch" value="${attr(prefill.branch || "main")}" placeholder="main" required />
         </label>
 
         <label class="field">
-          <span>Pasta dos JSONs</span>
-          <input name="jsonPath" value="${attr(prefill.jsonPath || "")}" placeholder="vazio = raiz do repositório" />
-          <p class="hint">Exemplo: <code>series</code>, <code>json</code> ou deixe vazio para usar a raiz.</p>
+          <span>${t("jsonFolder")}</span>
+          <input name="jsonPath" value="${attr(prefill.jsonPath || "")}" placeholder="${attr(t("jsonFolderPlaceholder"))}" />
+          <p class="hint">${t("jsonFolderHint")}</p>
         </label>
 
         <details class="guide-card span-2">
-          <summary>ImgChest scraper opcional</summary>
+          <summary>${t("optionalImgChest")}</summary>
           <div class="guide-content">
-            <p>Para importar imagens direto de um álbum ImgChest no GitHub Pages, o jeito mais estável é usar o endpoint oficial do ImgChest com um API token do ImgChest. Sem token, o app ainda tenta ler a página pública, mas o navegador pode bloquear por CORS.</p>
+            <p>${t("imgChestHelp")}</p>
             <label class="field">
-              <span>ImgChest API token</span>
-              <input name="imgchestToken" value="${attr(imgchestToken)}" placeholder="opcional" type="password" />
-              <p class="hint">Esse token é diferente do token do GitHub. Ele só é usado na função “Importar ImgChest”.</p>
+              <span>${t("imgChestApiToken")}</span>
+              <input name="imgchestToken" value="${attr(imgchestToken)}" placeholder="${attr(t("optional"))}" type="password" />
+              <p class="hint">${t("imgChestTokenHint")}</p>
             </label>
             <label class="checkbox-row">
               <input name="rememberImgchestToken" type="checkbox" ${imgchestToken ? "checked" : ""} />
-              <span>Lembrar ImgChest token neste navegador</span>
+              <span>${t("rememberImgChestToken")}</span>
             </label>
           </div>
         </details>
 
         <label class="checkbox-row span-2">
           <input name="rememberToken" type="checkbox" ${token ? "checked" : ""} />
-          <span>Lembrar token do GitHub neste navegador</span>
+          <span>${t("rememberGithubToken")}</span>
         </label>
 
         <div class="form-actions span-2">
-          <button class="btn primary" type="submit">Conectar</button>
-          <button class="btn ghost" type="button" id="clear-saved-btn">Limpar dados salvos</button>
+          <button class="btn primary" type="submit">${t("connect")}</button>
+          <button class="btn ghost" type="button" id="clear-saved-btn">${t("clearSavedData")}</button>
         </div>
       </form>
     </section>
   `;
+}
+
+function stateLangStep(step) {
+  const steps = {
+    "pt-BR": {
+      1: "Entre na sua conta do GitHub.",
+      2: "Clique no botão acima ou vá em Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.",
+      3: "Em Token name, coloque algo como Adder Pages.",
+      4: "Em Expiration, escolha uma validade. Exemplo: 90 days.",
+      5: "Em Resource owner, escolha o dono do repositório: sua conta ou organização.",
+      6: "Em Repository access, escolha Only select repositories e selecione apenas o repositório dos JSONs.",
+      7: "Em Repository permissions, procure Contents e marque Read and write. O Metadata fica como leitura automaticamente.",
+      8: "Clique em Generate token.",
+      9: "Copie o token gerado e cole no campo Personal Access Token abaixo. O GitHub só mostra esse token uma vez.",
+    },
+    "en-US": {
+      1: "Sign in to your GitHub account.",
+      2: "Click the button above or go to Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.",
+      3: "In Token name, use something like Adder Pages.",
+      4: "In Expiration, choose an expiration date. Example: 90 days.",
+      5: "In Resource owner, choose the repository owner: your account or organization.",
+      6: "In Repository access, choose Only select repositories and select only the JSON repository.",
+      7: "In Repository permissions, find Contents and set it to Read and write. Metadata stays read-only automatically.",
+      8: "Click Generate token.",
+      9: "Copy the generated token and paste it into the Personal Access Token field below. GitHub only shows the token once.",
+    },
+  };
+  const lang = document.documentElement.lang === "en" ? "en-US" : "pt-BR";
+  return steps[lang][step];
 }
