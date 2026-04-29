@@ -3,7 +3,7 @@ import { saveConfig, clearSaved, getSavedImgChestToken } from "../state.js";
 import { render, setBusy, toast, errorMessage } from "../ui.js";
 import { attr } from "../utils.js";
 import { githubPath } from "../github.js";
-import { ensureClient } from "../helpers.js";
+import { ensureClient } from "../repo.js";
 
 export function renderConnect(prefill = {}, navigateToLanding, navigateToDashboard) {
   const token = prefill.token || "";
