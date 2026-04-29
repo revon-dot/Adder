@@ -6,6 +6,23 @@ import { collectManifestFromEditor } from "../editor-collector.js";
 import { ensureClient } from "../repo.js";
 import { showValidationModal } from "../modals.js";
 
+function upsertSavedFileRecord({ oldPath, desiredPath, record, isRenamingExisting }) {
+  const oldIndex = state.files.findIndex((file) => file.path === oldPath);
+  const targetIndex = state.files.findIndex((file) => file.path === desiredPath);
+
+  if (targetIndex >= 0) {
+    state.files[targetIndex] = record;
+    return;
+  }
+
+  if (!isRenamingExisting && oldIndex >= 0) {
+    state.files[oldIndex] = record;
+    return;
+  }
+
+  state.files.push(record);
+}
+
 export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
   const result = collectManifestFromEditor();
   if (!result) return;
@@ -24,7 +41,8 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
   const oldPath = state.current.path;
   const desiredPath = githubPath.joinPath(state.config.jsonPath, fileName);
   const isRenamingExisting = !state.current.isNew && oldPath !== desiredPath;
-  const existingTarget = state.files.find((file) => file.path === desiredPath);
+  const targetIndex = state.files.findIndex((file) => file.path === desiredPath);
+  const existingTarget = targetIndex >= 0 ? state.files[targetIndex] : null;
   const isOverwritingDifferentFile = Boolean(existingTarget && existingTarget.path !== oldPath);
 
   if (isRenamingExisting) {
@@ -58,7 +76,6 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
       data: manifest,
     };
 
-    const existingIndex = state.files.findIndex((file) => file.path === desiredPath || file.path === oldPath);
     const record = {
       name: fileName,
       path: desiredPath,
@@ -67,8 +84,13 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
       downloadUrl: saveResult.content?.download_url,
       data: manifest,
     };
-    if (existingIndex >= 0) state.files[existingIndex] = record;
-    else state.files.push(record);
+
+    upsertSavedFileRecord({
+      oldPath,
+      desiredPath,
+      record,
+      isRenamingExisting,
+    });
 
     toast("JSON salvo no GitHub.", "success");
     renderEditor(navigateToDashboard);
