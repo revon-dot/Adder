@@ -65,8 +65,11 @@ function renderEmptyDashboard() {
   return `
     <div class="empty-state">
       <h3>Nenhum JSON encontrado</h3>
-      <p>Crie um novo mangá ou confira se a pasta dos JSONs está correta.</p>
-      <button class="btn primary" id="empty-new-btn">Criar primeiro JSON</button>
+      <p>Não encontramos obras nesta pasta do repositório. Crie um novo mangá para começar ou revise a pasta configurada.</p>
+      <div class="row-actions" style="justify-content: center;">
+        <button class="btn primary" id="empty-new-btn">Novo mangá</button>
+        <button class="btn ghost" id="empty-change-repo-btn">Trocar repo</button>
+      </div>
     </div>
   `;
 }
