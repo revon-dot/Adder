@@ -23,6 +23,8 @@ export const state = {
 export function resetEditorListState() {
   state.editor.chapterSearch = "";
   state.editor.chapterPage = 1;
+  state.editor.chapterPageSize = 10;
+  state.editor.chapterPageSizeSelected = false;
 }
 
 export function loadSavedConfig() {
