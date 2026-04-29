@@ -3,6 +3,10 @@ import { render } from "../ui.js";
 import { escapeHtml } from "../utils.js";
 import { bindLanguageToggle, renderLanguageToggle, t } from "../i18n.js";
 
+function label(pt, en) {
+  return document.documentElement.lang === "en" ? en : pt;
+}
+
 function showHowItWorksModal() {
   const modal = document.createElement("div");
   modal.className = "modal-backdrop";
@@ -74,8 +78,8 @@ export function renderLanding(navigateToConnect) {
         </p>
         <div class="hero-actions">
           <button class="btn primary" id="begin-btn">${t("begin")}</button>
-          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>${t("loadSaved")}</button>
-          <button class="btn ghost" id="how-it-works-btn">${t("howItWorks")}</button>
+          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>${label("Carregar Dados Salvos", "Load Saved Data")}</button>
+          <button class="btn ghost" id="how-it-works-btn">${label("Como Funciona", "How It Works")}</button>
         </div>
         <p class="footer-note">
           ${saved ? `${t("savedConfig")}: <strong>${escapeHtml(saved.owner)}/${escapeHtml(saved.repo)}</strong>${hasToken ? ` · ${t("tokenSaved")}` : ` · ${t("tokenNotSaved")}`}` : t("noSavedConfig")}
