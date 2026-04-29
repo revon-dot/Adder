@@ -2,12 +2,14 @@ import { state, saveConfig, clearSaved } from "../state.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
 import { githubPath } from "../github.js";
 import { ensureClient } from "../repo.js";
+import { bindLanguageToggle, t } from "../i18n.js";
 
 export function bindConnectEvents({ navigateToLanding, navigateToDashboard, renderConnect }) {
+  bindLanguageToggle(() => renderConnect({ ...state.config }, navigateToLanding, navigateToDashboard));
   document.querySelector("#back-home-btn").addEventListener("click", navigateToLanding);
   document.querySelector("#clear-saved-btn").addEventListener("click", () => {
     clearSaved();
-    toast("Dados salvos apagados.", "success");
+    toast(t("savedDataCleared") || "Dados salvos apagados.", "success");
     renderConnect({}, navigateToLanding, navigateToDashboard);
   });
 
@@ -30,7 +32,7 @@ export function bindConnectEvents({ navigateToLanding, navigateToDashboard, rend
       const client = ensureClient();
       await client.getRepo(config);
       saveConfig(config, Boolean(form.get("rememberToken")), Boolean(form.get("rememberImgchestToken")));
-      toast("Conectado ao repositório.", "success");
+      toast(t("connectedRepo") || "Conectado ao repositório.", "success");
       navigateToDashboard();
     } catch (error) {
       toast(errorMessage(error), "error");
