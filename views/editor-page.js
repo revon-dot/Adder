@@ -64,7 +64,6 @@ export function renderEditorPage(current, manifest) {
           <label class="field">
             <span>${label("Nome do Arquivo", "File Name")}</span>
             <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" ${fileNameReadonly} />
-            <p class="hint">${current.isNew ? t("fileNameAutoHint") : t("fileNameHint")}</p>
           </label>
           <label class="field">
             <span>${t("title")}</span>
