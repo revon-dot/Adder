@@ -54,7 +54,7 @@ export function renderEditorPage(current, manifest) {
     
     <section class="panel editor-panel">
       <form id="editor-form" class="form-grid editor-form-block">
-        <div class="field group">
+        <div class="field group editor-main-fields">
           <label class="field">
             <span>Nome do arquivo</span>
             <input name="fileName" value="${attr(current.name)}" placeholder="manga.json" />
@@ -64,13 +64,6 @@ export function renderEditorPage(current, manifest) {
             <span>Título</span>
             <input name="title" value="${attr(manifest.title)}" placeholder="Título do mangá" />
           </label>
-          <label class="field">
-            <span>Descrição</span>
-            <textarea name="description" placeholder="Descrição do mangá">${attr(manifest.description)}</textarea>
-          </label>
-        </div>
-        
-        <div class="field group">
           <label class="field">
             <span>Artista</span>
             <input name="artist" value="${attr(manifest.artist)}" placeholder="Nome do artista" />
@@ -82,6 +75,13 @@ export function renderEditorPage(current, manifest) {
           <label class="field">
             <span>Capa</span>
             <input name="cover" value="${attr(manifest.cover)}" placeholder="URL da imagem de capa" />
+          </label>
+        </div>
+
+        <div class="field group editor-description-group span-2">
+          <label class="field">
+            <span>Descrição</span>
+            <textarea name="description" placeholder="Descrição do mangá">${attr(manifest.description)}</textarea>
           </label>
         </div>
       </form>
