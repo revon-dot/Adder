@@ -1,5 +1,5 @@
 import { escapeHtml, attr } from "./utils.js";
-import { prettyJson } from "./cubari.js"; // Correção aqui
+import { prettyJson, scrapeImgChestAlbum, extractImgChestLinksFromText } from "./cubari.js"; // Correção aqui
 import { copyText, collectManifestFromEditor, getNextChapterNumber } from "./helpers.js";
 import { toast, setBusy } from "./ui.js";
 import { state, getSavedImgChestToken } from "./state.js";
