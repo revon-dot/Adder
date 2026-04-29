@@ -1,20 +1,36 @@
 import { state } from "../state.js";
-import { render, toast, errorMessage } from "../ui.js";
+import { render, errorMessage } from "../ui.js";
 import { escapeHtml } from "../utils.js";
 import { normalizeManifest } from "../cubari.js";
 import { repoLabel, ensureClient } from "../repo.js";
 import { renderDashboardPage } from "./dashboard-page.js";
 import { bindDashboardEvents } from "./dashboard-events.js";
 
-export async function loadDashboard(navigateToDashboard) {
+function withTimeout(promise, ms = 20000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Tempo limite ao carregar arquivos do GitHub.")), ms);
+    }),
+  ]);
+}
+
+export async function loadDashboard(navigateToDashboard, navigateToConnect = null) {
   renderLoading("Lendo arquivos JSON...");
   try {
     const client = ensureClient();
     const config = state.config;
-    const jsonFiles = await client.listJsonFiles({
+    const jsonFiles = await withTimeout(client.listJsonFiles({
       ...config,
       path: config.jsonPath,
-    });
+    }));
+
+    if (!jsonFiles.length) {
+      state.files = [];
+      navigateToDashboard();
+      return;
+    }
+
     const loaded = [];
 
     for (const file of jsonFiles) {
@@ -43,7 +59,7 @@ export async function loadDashboard(navigateToDashboard) {
     state.files = loaded;
     navigateToDashboard();
   } catch (error) {
-    toast(errorMessage(error), "error");
+    renderLoadError(errorMessage(error), navigateToDashboard, navigateToConnect);
   }
 }
 
@@ -57,6 +73,27 @@ function renderLoading(text = "Carregando...") {
       </div>
     </section>
   `);
+}
+
+function renderLoadError(message, navigateToDashboard, navigateToConnect) {
+  render(`
+    <section class="panel loading">
+      <div>
+        <h2>Não foi possível carregar os JSONs</h2>
+        <p>${escapeHtml(repoLabel())}</p>
+        <div class="error-box" style="margin: 16px 0; text-align: left;">${escapeHtml(message)}</div>
+        <div class="row-actions" style="justify-content: center;">
+          <button class="btn primary" id="retry-dashboard-load-btn">Tentar novamente</button>
+          <button class="btn ghost" id="load-error-change-repo-btn">Trocar repo</button>
+        </div>
+      </div>
+    </section>
+  `);
+
+  document.querySelector("#retry-dashboard-load-btn")?.addEventListener("click", () => loadDashboard(navigateToDashboard, navigateToConnect));
+  document.querySelector("#load-error-change-repo-btn")?.addEventListener("click", () => {
+    if (navigateToConnect) navigateToConnect({ ...state.config });
+  });
 }
 
 export function renderDashboard(navigateToEditor, navigateToConnect) {
