@@ -10,8 +10,18 @@ export const state = {
   files: [],
   current: null,
   search: "",
+  editor: {
+    chapterSearch: "",
+    chapterPage: 1,
+    chapterPageSize: 25,
+  },
   busy: false,
 };
+
+export function resetEditorListState() {
+  state.editor.chapterSearch = "";
+  state.editor.chapterPage = 1;
+}
 
 export function loadSavedConfig() {
   try {
