@@ -1,6 +1,7 @@
 import { loadSavedConfig, getSavedToken, getSavedImgChestToken } from "../state.js";
 import { render } from "../ui.js";
 import { escapeHtml } from "../utils.js";
+import { bindLanguageToggle, renderLanguageToggle, t } from "../i18n.js";
 
 function showHowItWorksModal() {
   const modal = document.createElement("div");
@@ -62,24 +63,28 @@ export function renderLanding(navigateToConnect) {
   const hasToken = Boolean(getSavedToken());
   render(`
     <section class="hero">
+      <div class="landing-language-wrap">
+        ${renderLanguageToggle("landing-language")}
+      </div>
       <div class="hero-content">
-        <p class="kicker">Adder Pages</p>
-        <h1>Editor Cubari direto no GitHub Pages.</h1>
+        <p class="kicker">${t("landingKicker")}</p>
+        <h1>${t("landingTitle")}</h1>
         <p class="lead">
-          Uma versão estática do Adder: você edita JSONs de mangás, capítulos, grupos e imagens pelo navegador, e salva direto no repositório usando a API do GitHub.
+          ${t("landingLead")}
         </p>
         <div class="hero-actions">
-          <button class="btn primary" id="begin-btn">Começar</button>
-          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>Carregar dados salvos</button>
-          <button class="btn ghost" id="how-it-works-btn">Como funciona</button>
+          <button class="btn primary" id="begin-btn">${t("begin")}</button>
+          <button class="btn ghost" id="load-saved-btn" ${saved ? "" : "disabled"}>${t("loadSaved")}</button>
+          <button class="btn ghost" id="how-it-works-btn">${t("howItWorks")}</button>
         </div>
         <p class="footer-note">
-          ${saved ? `Config salva: <strong>${escapeHtml(saved.owner)}/${escapeHtml(saved.repo)}</strong>${hasToken ? " · token salvo neste navegador" : " · token não salvo"}` : "Nenhuma configuração salva neste navegador."}
+          ${saved ? `${t("savedConfig")}: <strong>${escapeHtml(saved.owner)}/${escapeHtml(saved.repo)}</strong>${hasToken ? ` · ${t("tokenSaved")}` : ` · ${t("tokenNotSaved")}`}` : t("noSavedConfig")}
         </p>
       </div>
     </section>
   `);
 
+  bindLanguageToggle(() => renderLanding(navigateToConnect));
   document.querySelector("#begin-btn").addEventListener("click", () => navigateToConnect(saved || {}));
   document.querySelector("#how-it-works-btn")?.addEventListener("click", showHowItWorksModal);
   document.querySelector("#load-saved-btn")?.addEventListener("click", () => {
