@@ -1,8 +1,7 @@
 import { state } from "./state.js";
-import { GitHubClient, githubPath, rawGitHubUrl } from "./github.js";
-import { buildCubariGistUrl, prettyJson, sanitizeFileName, validateManifest, countGroups, countImages, normalizeManifest, emptyManifest } from "./cubari.js";
+import { GitHubClient } from "./github.js";
+import { buildCubariGistUrl, sanitizeFileName, validateManifest, normalizeManifest } from "./cubari.js";
 import { toast, setBusy, errorMessage } from "./ui.js";
-import { attr } from "./utils.js";
 
 export function ensureClient() {
   if (!state.config) throw new Error("Configuração ausente.");
