@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { toast } from "../ui.js";
 import { showChapterEditModal } from "./chapter-modal.js";
+import { t } from "../i18n.js";
 
 function rerender(renderEditor, navigateToDashboard, updateEditorStats) {
   if (renderEditor && navigateToDashboard) renderEditor(navigateToDashboard);
@@ -34,7 +35,7 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
       const number = button.dataset.editChapter;
       const chapter = state.current?.data?.chapters?.[number];
       if (!number || !chapter) {
-        toast("Não consegui encontrar este capítulo para edição.", "error");
+        toast(t("chapterNotFound"), "error");
         return;
       }
 
@@ -57,7 +58,7 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
     button.addEventListener("click", () => {
       const number = button.dataset.removeChapter;
       if (!number) return;
-      if (!confirm(`Remover o capítulo ${number}?`)) return;
+      if (!confirm(t("removeChapterConfirm", { number }))) return;
       delete state.current?.data?.chapters?.[number];
       rerender(renderEditor, navigateToDashboard, updateEditorStats);
     });
