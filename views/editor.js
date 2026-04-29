@@ -1,7 +1,7 @@
 import { state } from "../state.js";
 import { render } from "../ui.js";
 import { githubPath } from "../github.js";
-import { emptyManifest, emptyChapter, normalizeManifest } from "../cubari.js";
+import { emptyManifest, emptyChapter, normalizeManifest, sanitizeFileName } from "../cubari.js";
 import { collectManifestFromEditor, getNextChapterNumber } from "../editor-collector.js";
 import { copyText } from "../clipboard.js";
 import { saveCurrentEditor } from "./editor-save.js";
@@ -18,8 +18,26 @@ function editorSnapshot(fileName, manifest) {
   });
 }
 
-function getCurrentEditorSnapshot() {
+function syncAutoFileName() {
+  if (!state.current?.isNew) return;
+  const titleInput = document.querySelector("input[name='title']");
+  const fileNameInput = document.querySelector("input[name='fileName']");
+  if (!titleInput || !fileNameInput) return;
+  fileNameInput.value = sanitizeFileName(titleInput.value);
+}
+
+function syncCurrentFromForm() {
+  syncAutoFileName();
   const result = collectManifestFromEditor({ silent: true });
+  if (!result || !state.current) return null;
+  state.current.data = result.manifest;
+  state.current.name = result.fileName;
+  state.current.path = githubPath.joinPath(state.config.jsonPath, result.fileName);
+  return result;
+}
+
+function getCurrentEditorSnapshot() {
+  const result = syncCurrentFromForm();
   if (!result) return "";
   return editorSnapshot(result.fileName, result.manifest);
 }
@@ -54,11 +72,13 @@ function chapterEventOptions(navigateToDashboard) {
 }
 
 function addChapterWithDrawer(navigateToDashboard) {
+  syncCurrentFromForm();
   showChapterEditModal({
     mode: "create",
     number: getNextChapterNumber(),
     chapter: emptyChapter(),
     onSave: ({ number, chapter }) => {
+      syncCurrentFromForm();
       if (!state.current.data.chapters) state.current.data.chapters = {};
       if (state.current.data.chapters[number]) {
         const ok = confirm(t("replaceExistingChapter", { number }));
@@ -73,7 +93,7 @@ function addChapterWithDrawer(navigateToDashboard) {
 export function openEditor(file, navigateToDashboard) {
   if (!file) {
     const data = emptyManifest();
-    const name = "novo-manga.json";
+    const name = sanitizeFileName(data.title);
     state.current = {
       isNew: true,
       name,
@@ -106,7 +126,10 @@ export function renderEditor(navigateToDashboard) {
 }
 
 function bindEditorEvents(navigateToDashboard) {
-  bindLanguageToggle(() => renderEditor(navigateToDashboard));
+  bindLanguageToggle(() => {
+    syncCurrentFromForm();
+    renderEditor(navigateToDashboard);
+  });
   document.querySelector("#logo-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
 
   window.onbeforeunload = hasUnsavedChanges()
@@ -119,13 +142,23 @@ function bindEditorEvents(navigateToDashboard) {
   bindCopyButton("#copy-editor-cubari-btn", "cubariUrl");
   bindCopyButton("#copy-editor-raw-btn", "rawUrl");
 
-  document.querySelector("#save-btn")?.addEventListener("click", () => saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot));
+  document.querySelector("#save-btn")?.addEventListener("click", () => {
+    syncAutoFileName();
+    saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
+  });
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
+
+  const titleInput = document.querySelector("input[name='title']");
+  titleInput?.addEventListener("input", () => {
+    syncAutoFileName();
+    updateEditorStats({ skipCoverPreview: true });
+  });
 
   const coverInput = document.querySelector("input[name='cover']");
   coverInput?.addEventListener("input", () => updateEditorStats());
   document.querySelector("#editor-form")?.addEventListener("input", () => updateEditorStats({ skipCoverPreview: true }));
 
   bindChapterButtons(document, chapterEventOptions(navigateToDashboard));
+  syncAutoFileName();
   updateEditorStats();
 }
