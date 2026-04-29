@@ -1,0 +1,30 @@
+.editor-form-block {
+  margin-bottom: 28px;
+}
+
+.editor-chapter-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 26px 0 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.editor-chapter-actions .btn {
+  min-width: 170px;
+}
+
+@media (max-width: 900px) {
+  .editor-form-block {
+    margin-bottom: 24px;
+  }
+
+  .editor-chapter-actions {
+    margin-top: 22px;
+  }
+
+  .editor-chapter-actions .btn {
+    width: 100%;
+  }
+}
