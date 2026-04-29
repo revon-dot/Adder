@@ -1,13 +1,15 @@
 import { state } from "../state.js";
 import { escapeHtml, attr } from "../utils.js";
-import { countImages } from "../cubari.js";
 import { repoLabel } from "../repo.js";
 import { renderLanguageToggle, t } from "../i18n.js";
 
+function label(pt, en) {
+  return document.documentElement.lang === "en" ? en : pt;
+}
+
 export function getDashboardStats() {
   const totalChapters = state.files.reduce((sum, file) => sum + (file.data ? Object.keys(file.data.chapters || {}).length : 0), 0);
-  const totalImages = state.files.reduce((sum, file) => sum + (file.data ? countImages(file.data) : 0), 0);
-  return { totalChapters, totalImages };
+  return { totalChapters };
 }
 
 export function getFilteredDashboardFiles() {
@@ -22,8 +24,9 @@ export function getFilteredDashboardFiles() {
 }
 
 export function renderDashboardPage() {
-  const { totalChapters, totalImages } = getDashboardStats();
+  const { totalChapters } = getDashboardStats();
   const filtered = getFilteredDashboardFiles();
+  const worksLabel = label("Obras", "Works");
 
   return `
     <header class="dashboard-header dashboard-compact">
@@ -38,16 +41,15 @@ export function renderDashboardPage() {
 
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
-          <span class="mini-stat"><strong>${state.files.length}</strong> ${t("jsons")}</span>
+          <span class="mini-stat"><strong>${state.files.length}</strong> ${worksLabel}</span>
           <span class="mini-stat"><strong>${totalChapters}</strong> ${t("chapters")}</span>
-          <span class="mini-stat"><strong>${totalImages}</strong> ${t("images")}</span>
         </div>
       </div>
 
       <div class="toolbar dashboard-toolbar">
-        <button class="btn primary" id="new-manga-btn">${t("newManga")}</button>
+        <button class="btn primary" id="new-manga-btn">${label("Novo Mangá", "New Manga")}</button>
         <button class="btn ghost" id="refresh-btn">${t("refresh")}</button>
-        <button class="btn ghost" id="change-repo-btn">${t("changeRepo")}</button>
+        <button class="btn ghost" id="change-repo-btn">${label("Trocar Repo", "Change Repo")}</button>
         ${renderLanguageToggle("dashboard-language")}
       </div>
     </header>
@@ -55,7 +57,7 @@ export function renderDashboardPage() {
     <section class="panel dashboard-panel">
       <div class="search-bar">
         <input id="search-input" data-keep-enabled="true" value="${attr(state.search)}" placeholder="${attr(t("searchPlaceholder"))}" />
-        <span class="status-pill">${filtered.length} / ${state.files.length} ${t("jsons")}</span>
+        <span class="status-pill">${filtered.length} / ${state.files.length} ${worksLabel}</span>
       </div>
 
       ${filtered.length ? renderMangaList(filtered) : renderEmptyDashboard()}
@@ -69,8 +71,8 @@ function renderEmptyDashboard() {
       <h3>${t("noJsonFound")}</h3>
       <p>${t("noJsonFoundDescription")}</p>
       <div class="row-actions" style="justify-content: center;">
-        <button class="btn primary" id="empty-new-btn">${t("newManga")}</button>
-        <button class="btn ghost" id="empty-change-repo-btn">${t("changeRepo")}</button>
+        <button class="btn primary" id="empty-new-btn">${label("Novo Mangá", "New Manga")}</button>
+        <button class="btn ghost" id="empty-change-repo-btn">${label("Trocar Repo", "Change Repo")}</button>
       </div>
     </div>
   `;
@@ -85,7 +87,6 @@ function renderMangaList(filtered) {
             <th>${t("work")}</th>
             <th>${t("file")}</th>
             <th>${t("chapters")}</th>
-            <th>${t("images")}</th>
             <th>${t("actions")}</th>
           </tr>
         </thead>
@@ -100,7 +101,6 @@ function renderMangaList(filtered) {
 function renderMangaRow(file, index) {
   const title = file.data?.title || file.name;
   const chapters = file.data ? Object.keys(file.data.chapters || {}).length : 0;
-  const images = file.data ? countImages(file.data) : 0;
   const cover = file.data?.cover || "";
   const error = file.error ? `<span class="manga-row-error">${escapeHtml(file.error)}</span>` : "";
   return `
@@ -113,13 +113,12 @@ function renderMangaRow(file, index) {
           <div>
             <strong>${escapeHtml(title)}</strong>
             ${error}
-            <span class="manga-mobile-meta">${chapters} ${t("chapters")} · ${images} ${t("images")}</span>
+            <span class="manga-mobile-meta">${chapters} ${t("chapters")}</span>
           </div>
         </div>
       </td>
       <td><span class="file-name">${escapeHtml(file.name)}</span></td>
       <td>${chapters}</td>
-      <td>${images}</td>
       <td>
         <div class="manga-actions compact-actions">
           <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>${t("edit")}</button>
