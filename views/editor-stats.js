@@ -1,11 +1,9 @@
 import { attr } from "../utils.js";
-import { countGroups, countImages } from "../cubari.js";
-import { collectManifestFromEditor } from "../editor-collector.js";
+import { countGroups, countImages, normalizeManifest } from "../cubari.js";
+import { state } from "../state.js";
 
-export function updateEditorStats() {
-  const result = collectManifestFromEditor({ silent: true });
-  if (!result) return;
-  const { manifest } = result;
+export function updateEditorStats(options = {}) {
+  const manifest = normalizeManifest(state.current?.data || {});
   const chapters = Object.keys(manifest.chapters || {}).length;
   const groups = countGroups(manifest);
   const images = countImages(manifest);
@@ -16,6 +14,8 @@ export function updateEditorStats() {
   if (statChapters) statChapters.textContent = String(chapters);
   if (statGroups) statGroups.textContent = String(groups);
   if (statImages) statImages.textContent = String(images);
+
+  if (options.skipCoverPreview) return;
 
   const coverValue = document.querySelector("input[name='cover']")?.value.trim();
   const preview = document.querySelector("#preview-cover");
