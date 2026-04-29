@@ -1,16 +1,30 @@
+import { state } from "../state.js";
 import { toast } from "../ui.js";
-import { importImgChestIntoGroup, extractImgChestFromTextarea } from "./editor-imgchest-tools.js";
+import { showChapterEditModal } from "./chapter-modal.js";
 
-export function bindChapterButtons(scope = document, updateEditorStats = () => {}) {
-  scope.querySelectorAll("[data-toggle-chapter]").forEach((button) => {
+export function bindChapterButtons(scope = document, { updateEditorStats = () => {}, renderEditor = null, navigateToDashboard = null } = {}) {
+  scope.querySelectorAll("[data-edit-chapter]").forEach((button) => {
     if (button.dataset.bound === "true") return;
     button.dataset.bound = "true";
     button.addEventListener("click", () => {
-      const card = button.closest("[data-chapter-card]");
-      const content = card?.querySelector("[data-groups-list]");
-      if (!content) return;
-      content.classList.toggle("collapsed");
-      button.textContent = content.classList.contains("collapsed") ? "Expandir" : "Alternar";
+      const number = button.dataset.editChapter;
+      const chapter = state.current?.data?.chapters?.[number];
+      if (!number || !chapter) {
+        toast("Não consegui encontrar este capítulo para edição.", "error");
+        return;
+      }
+
+      showChapterEditModal({
+        number,
+        chapter,
+        onSave: ({ number: nextNumber, chapter: nextChapter }) => {
+          if (!state.current.data.chapters) state.current.data.chapters = {};
+          if (nextNumber !== number) delete state.current.data.chapters[number];
+          state.current.data.chapters[nextNumber] = nextChapter;
+          if (renderEditor && navigateToDashboard) renderEditor(navigateToDashboard);
+          else updateEditorStats();
+        },
+      });
     });
   });
 
@@ -18,36 +32,12 @@ export function bindChapterButtons(scope = document, updateEditorStats = () => {
     if (button.dataset.bound === "true") return;
     button.dataset.bound = "true";
     button.addEventListener("click", () => {
-      if (!confirm("Remover este capítulo?")) return;
-      button.closest("[data-chapter-card]")?.remove();
-      updateEditorStats();
+      const number = button.dataset.removeChapter;
+      if (!number) return;
+      if (!confirm(`Remover o capítulo ${number}?`)) return;
+      delete state.current?.data?.chapters?.[number];
+      if (renderEditor && navigateToDashboard) renderEditor(navigateToDashboard);
+      else updateEditorStats();
     });
-  });
-
-  scope.querySelectorAll("[data-remove-group]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const chapter = button.closest("[data-chapter-card]");
-      const groups = chapter?.querySelectorAll("[data-group-card]") || [];
-      if (groups.length <= 1) {
-        toast("O capítulo precisa ter pelo menos um grupo.", "error");
-        return;
-      }
-      button.closest("[data-group-card]")?.remove();
-      updateEditorStats();
-    });
-  });
-
-  scope.querySelectorAll("[data-import-imgchest]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", async () => importImgChestIntoGroup(button, updateEditorStats));
-  });
-
-  scope.querySelectorAll("[data-extract-imgchest]").forEach((button) => {
-    if (button.dataset.bound === "true") return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => extractImgChestFromTextarea(button, updateEditorStats));
   });
 }
