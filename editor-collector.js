@@ -1,4 +1,5 @@
 import { sanitizeFileName, validateManifest, normalizeManifest } from "./cubari.js";
+import { state } from "./state.js";
 import { toast } from "./ui.js";
 
 export function collectManifestFromEditor(options = {}) {
@@ -6,55 +7,18 @@ export function collectManifestFromEditor(options = {}) {
   if (!form) return null;
 
   const formData = new FormData(form);
+  const currentChapters = state.current?.data?.chapters || {};
   const manifest = normalizeManifest({
     title: String(formData.get("title") || "").trim(),
     description: String(formData.get("description") || ""),
     artist: String(formData.get("artist") || "").trim(),
     author: String(formData.get("author") || "").trim(),
     cover: String(formData.get("cover") || "").trim(),
-    chapters: {},
+    chapters: currentChapters,
   });
 
-  const chapterCards = [...document.querySelectorAll("[data-chapter-card]")];
-  const duplicateNumbers = new Set();
-  const seen = new Set();
-
-  for (const card of chapterCards) {
-    const number = card.querySelector("[data-chapter-number]")?.value.trim();
-    if (!number) continue;
-    if (seen.has(number)) duplicateNumbers.add(number);
-    seen.add(number);
-
-    const chapter = {
-      title: card.querySelector("[data-chapter-title]")?.value || "",
-      volume: card.querySelector("[data-chapter-volume]")?.value || "",
-      last_updated: card.querySelector("[data-chapter-updated]")?.value || String(Math.floor(Date.now() / 1000)),
-      groups: {},
-    };
-
-    const groupCards = [...card.querySelectorAll("[data-group-card]")];
-    for (const groupCard of groupCards) {
-      const groupName = groupCard.querySelector("[data-group-name]")?.value.trim() || "";
-      const imagesText = groupCard.querySelector("[data-group-images]")?.value || "";
-      const images = imagesText
-        .split(/\r?\n/)
-        .map((url) => url.trim())
-        .filter(Boolean);
-      chapter.groups[groupName] = images;
-    }
-
-    if (!Object.keys(chapter.groups).length) chapter.groups[""] = [];
-    manifest.chapters[number] = chapter;
-  }
-
   const fileName = String(formData.get("fileName") || "").trim() || sanitizeFileName(manifest.title);
-  const errors = [];
-  if (duplicateNumbers.size) {
-    errors.push(`Há capítulos duplicados: ${[...duplicateNumbers].join(", ")}.`);
-  }
-
   const validation = validateManifest(manifest, fileName);
-  validation.errors.unshift(...errors);
 
   if (!options.silent && validation.errors.length) {
     toast(validation.errors[0], "error");
