@@ -10,27 +10,27 @@ function groupToText(images = []) {
 
 function renderGroupEditor(groupName = "", images = []) {
   return `
-    <section class="group-card" data-modal-group>
+    <section class="group-card drawer-group" data-modal-group>
       <div class="group-header">
         <label class="field" style="flex: 1;">
           <span>Nome do grupo</span>
           <input data-modal-group-name value="${attr(groupName)}" placeholder="vazio = grupo sem nome" />
         </label>
-        <button class="btn danger small" type="button" data-modal-remove-group>Remover grupo</button>
+        <button class="btn danger small" type="button" data-modal-remove-group>Remover</button>
       </div>
-      <div class="imgchest-tools">
+      <div class="imgchest-tools compact-imgchest-tools">
         <label class="field imgchest-url-field">
           <span>ImgChest album URL</span>
           <input data-modal-imgchest-url placeholder="https://imgchest.com/p/..." />
         </label>
         <div class="inline-tools">
-          <button class="btn ghost small" type="button" data-modal-import-imgchest>Importar ImgChest</button>
-          <button class="btn ghost small" type="button" data-modal-extract-imgchest>Extrair URLs coladas</button>
+          <button class="btn ghost small" type="button" data-modal-import-imgchest>Importar</button>
+          <button class="btn ghost small" type="button" data-modal-extract-imgchest>Extrair</button>
         </div>
       </div>
       <label class="field">
         <span>URLs das imagens</span>
-        <textarea data-modal-group-images placeholder="Cole uma URL por linha">${escapeHtml(groupToText(images))}</textarea>
+        <textarea class="urls-textarea" data-modal-group-images placeholder="Cole uma URL por linha">${escapeHtml(groupToText(images))}</textarea>
       </label>
     </section>
   `;
@@ -63,50 +63,51 @@ export function showChapterEditModal({ number, chapter, onSave }) {
   const safeChapter = { ...emptyChapter(), ...(chapter || {}) };
   const groupEntries = Object.entries(safeChapter.groups || { "": [] });
   const modal = document.createElement("div");
-  modal.className = "modal-backdrop";
+  modal.className = "drawer-backdrop";
   modal.innerHTML = `
-    <section class="modal-card add-chapter-modal">
-      <div class="panel-header">
+    <aside class="chapter-drawer">
+      <div class="drawer-header">
         <div>
           <p class="kicker">Capítulo</p>
-          <h2>Editar capítulo ${escapeHtml(number || "novo")}</h2>
+          <h2>Editar ${escapeHtml(number || "novo")}</h2>
         </div>
-        <button class="btn ghost" type="button" data-close-modal>Fechar</button>
+        <button class="btn ghost small" type="button" data-close-modal>Fechar</button>
       </div>
 
-      <form id="chapter-edit-form" class="form-grid" autocomplete="off">
-        <label class="field">
-          <span>Número</span>
-          <input name="number" value="${attr(number)}" placeholder="1" required />
-        </label>
+      <form id="chapter-edit-form" class="drawer-form" autocomplete="off">
+        <div class="drawer-grid">
+          <label class="field">
+            <span>Número</span>
+            <input name="number" value="${attr(number)}" placeholder="1" required />
+          </label>
+          <label class="field">
+            <span>Volume</span>
+            <input name="volume" value="${attr(safeChapter.volume)}" placeholder="opcional" />
+          </label>
+        </div>
         <label class="field">
           <span>Título do capítulo</span>
           <input name="title" value="${attr(safeChapter.title)}" placeholder="Capítulo 1" />
-        </label>
-        <label class="field">
-          <span>Volume</span>
-          <input name="volume" value="${attr(safeChapter.volume)}" placeholder="opcional" />
         </label>
         <label class="field">
           <span>Last updated</span>
           <input name="last_updated" value="${attr(safeChapter.last_updated || Math.floor(Date.now() / 1000))}" placeholder="timestamp" />
         </label>
 
-        <div class="span-2">
-          <div class="row-actions" style="margin-bottom: 12px;">
-            <button class="btn ghost" type="button" id="modal-add-group-btn">Adicionar grupo</button>
-          </div>
-          <div id="modal-groups-list">
-            ${groupEntries.map(([groupName, images]) => renderGroupEditor(groupName, images)).join("")}
-          </div>
+        <div class="drawer-section-title">
+          <strong>Grupos e imagens</strong>
+          <button class="btn ghost small" type="button" id="modal-add-group-btn">Adicionar grupo</button>
+        </div>
+        <div id="modal-groups-list">
+          ${groupEntries.map(([groupName, images]) => renderGroupEditor(groupName, images)).join("")}
         </div>
 
-        <div class="modal-actions span-2">
+        <div class="drawer-actions">
           <button class="btn primary" type="submit">Salvar capítulo</button>
           <button class="btn ghost" type="button" data-close-modal>Cancelar</button>
         </div>
       </form>
-    </section>
+    </aside>
   `;
 
   document.body.appendChild(modal);
@@ -169,7 +170,7 @@ export function showChapterEditModal({ number, chapter, onSave }) {
       } catch (error) {
         toast(error.message || String(error), "error");
       } finally {
-        target.textContent = "Importar ImgChest";
+        target.textContent = "Importar";
         setBusy(false);
       }
     }
