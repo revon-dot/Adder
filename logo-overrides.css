@@ -11,6 +11,72 @@
   border-radius: inherit;
 }
 
+.dashboard-header.dashboard-compact {
+  align-items: stretch;
+  padding: 22px 24px;
+}
+
+.dashboard-main {
+  gap: 16px;
+}
+
+.dashboard-title-wrap {
+  align-items: center;
+  gap: 16px;
+}
+
+.dashboard-title-wrap > div:last-child {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 52px;
+}
+
+.dashboard-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  align-self: center;
+}
+
+.favicon-logo {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 12px 28px rgba(79, 140, 255, 0.22);
+}
+
+.logo-button.back-logo-button {
+  border: 1px solid rgba(79, 140, 255, 0.22);
+  background: rgba(79, 140, 255, 0.12);
+  color: #dce7ff;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.logo-button.back-logo-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(79, 140, 255, 0.44);
+  background: rgba(79, 140, 255, 0.18);
+}
+
+.logo-button.back-logo-button .icon {
+  width: 25px;
+  height: 25px;
+}
+
+.dashboard-status-row {
+  margin-left: 68px;
+  padding-top: 2px;
+  gap: 10px;
+}
+
+.dashboard-status-row .status-pill,
+.dashboard-status-row .mini-stat {
+  min-height: 34px;
+}
+
+.dashboard-toolbar {
+  align-self: center;
+}
+
 .language-toggle {
   display: inline-flex;
   align-items: center;
@@ -145,6 +211,20 @@
 }
 
 @media (max-width: 900px) {
+  .dashboard-status-row {
+    margin-left: 0;
+    padding-top: 0;
+  }
+
+  .dashboard-title-wrap {
+    align-items: center;
+  }
+
+  .dashboard-logo {
+    width: 50px;
+    height: 50px;
+  }
+
   .landing-language-wrap {
     position: static;
     display: flex;
