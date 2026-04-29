@@ -7,7 +7,7 @@ function renderSavedLinks(current) {
   const cubariUrl = cubariUrlForPath(current.path);
   const githubUrl = current.htmlUrl || "";
   return `
-    <section class="notice editor-links" id="saved-links-panel">
+    <section class="notice editor-links editor-footer-links" id="saved-links-panel">
       <strong>Arquivo salvo:</strong>
       <span>${escapeHtml(current.path)}</span>
       <div class="row-actions">
@@ -47,7 +47,6 @@ export function renderEditorPage(current, manifest) {
     </header>
     
     <section class="panel editor-panel">
-      ${renderSavedLinks(current)}
       <form id="editor-form" class="form-grid editor-form-block">
         <div class="field group">
           <label class="field">
@@ -88,6 +87,8 @@ export function renderEditorPage(current, manifest) {
       <section class="panel" id="chapters-list">
         ${renderChapterCards(manifest)}
       </section>
+
+      ${renderSavedLinks(current)}
     </section>
   `;
 }
