@@ -1,5 +1,8 @@
 .editor-form-block {
-  align-items: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 22px;
+  align-items: stretch;
   margin-bottom: 28px;
 }
 
@@ -11,6 +14,23 @@
 
 .editor-form-block label.field {
   gap: 7px;
+}
+
+.editor-main-fields {
+  align-self: start;
+}
+
+.editor-description-group {
+  height: 100%;
+}
+
+.editor-description-group label.field {
+  height: 100%;
+}
+
+.editor-description-group textarea {
+  min-height: 360px;
+  height: 100%;
 }
 
 .editor-chapter-actions {
@@ -45,11 +65,24 @@
 
 @media (max-width: 900px) {
   .editor-form-block {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: start;
     margin-bottom: 24px;
   }
 
   .editor-form-block > .group {
     gap: 14px;
+  }
+
+  .editor-description-group,
+  .editor-description-group label.field {
+    height: auto;
+  }
+
+  .editor-description-group textarea {
+    min-height: 140px;
+    height: auto;
   }
 
   .editor-chapter-actions {
