@@ -23,7 +23,7 @@ function upsertSavedFileRecord({ oldPath, desiredPath, record, isRenamingExistin
   state.files.push(record);
 }
 
-export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
+export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeSnapshot = null) {
   const result = collectManifestFromEditor();
   if (!result) return;
   const { manifest, fileName, validation } = result;
@@ -68,20 +68,24 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor) {
       sha: targetSha,
     });
 
+    const savedContent = saveResult.content || {};
     state.current = {
       isNew: false,
       name: fileName,
       path: desiredPath,
-      sha: saveResult.content?.sha,
+      sha: savedContent.sha,
+      htmlUrl: savedContent.html_url,
+      downloadUrl: savedContent.download_url,
       data: manifest,
+      savedSnapshot: makeSnapshot ? makeSnapshot(fileName, manifest) : state.current.savedSnapshot,
     };
 
     const record = {
       name: fileName,
       path: desiredPath,
-      sha: saveResult.content?.sha,
-      htmlUrl: saveResult.content?.html_url,
-      downloadUrl: saveResult.content?.download_url,
+      sha: savedContent.sha,
+      htmlUrl: savedContent.html_url,
+      downloadUrl: savedContent.download_url,
       data: manifest,
     };
 
