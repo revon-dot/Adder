@@ -1,5 +1,6 @@
 const IMG_OK = /^https:\/\/cdn\.imgchest\.com\/files\/(?!thumb\/|avatar\/).+\.(png|jpe?g|webp|gif)(\?.*)?$/i;
 const CDN_URL_RE = /https:\/\/cdn\.imgchest\.com\/files\/(?!thumb\/|avatar\/)[^\s"'<>\\)]+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s"'<>\\)]*)?/gi;
+const ALLOWED_ALBUM_HOSTS = new Set(["imgchest.com", "www.imgchest.com"]);
 
 function cleanUrl(url = "") {
   return String(url)
@@ -22,6 +23,26 @@ function uniqueValidLinks(values = []) {
   }
 
   return links;
+}
+
+function normalizeImgChestAlbumUrl(albumUrl = "") {
+  let url;
+  try {
+    url = new URL(String(albumUrl).trim());
+  } catch {
+    throw new Error("URL do álbum ImgChest inválida.");
+  }
+
+  if (!ALLOWED_ALBUM_HOSTS.has(url.hostname.toLowerCase())) {
+    throw new Error("A URL precisa ser de um álbum do imgchest.com.");
+  }
+
+  return url.toString();
+}
+
+function isLikelyCorsError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
 }
 
 export function extractImgChestPostId(albumUrl = "") {
@@ -95,16 +116,24 @@ async function getPostWithApi(postId, token = "") {
 }
 
 async function scrapePublicPage(albumUrl = "") {
-  const response = await fetch(albumUrl, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Não consegui ler a página ImgChest. HTTP ${response.status}.`);
-  const html = await response.text();
-  return extractLinksFromHtml(html);
+  try {
+    const response = await fetch(albumUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Não consegui ler a página ImgChest. HTTP ${response.status}.`);
+    const html = await response.text();
+    return extractLinksFromHtml(html);
+  } catch (error) {
+    if (isLikelyCorsError(error)) {
+      throw new Error("O navegador bloqueou a leitura da página pública do ImgChest por CORS.");
+    }
+    throw error;
+  }
 }
 
 export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
-  const url = String(albumUrl || "").trim();
-  if (!url) return [];
+  const rawUrl = String(albumUrl || "").trim();
+  if (!rawUrl) return [];
 
+  const url = normalizeImgChestAlbumUrl(rawUrl);
   const postId = extractImgChestPostId(url);
   const token = String(options.token || "").trim();
   const errors = [];
