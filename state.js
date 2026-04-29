@@ -14,7 +14,7 @@ export const state = {
   editor: {
     chapterSearch: "",
     chapterPage: 1,
-    chapterPageSize: 25,
+    chapterPageSize: 10,
   },
   busy: false,
 };
