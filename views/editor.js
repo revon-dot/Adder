@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { state, resetEditorListState } from "../state.js";
 import { render } from "../ui.js";
 import { githubPath } from "../github.js";
 import { emptyManifest, emptyChapter, normalizeManifest, sanitizeFileName } from "../cubari.js";
@@ -118,6 +118,8 @@ async function deleteCurrentWork(navigateToDashboard) {
 }
 
 export function openEditor(file, navigateToDashboard) {
+  resetEditorListState();
+
   if (!file) {
     const data = emptyManifest();
     const name = sanitizeFileName(data.title);
