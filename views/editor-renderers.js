@@ -1,6 +1,7 @@
 import { state } from "../state.js";
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, attr } from "../utils.js";
 import { sortChapterEntries } from "../cubari.js";
+import { t } from "../i18n.js";
 
 function countChapterGroups(chapter = {}) {
   return Object.keys(chapter.groups || {}).length;
@@ -36,8 +37,8 @@ export function renderChapterCards(manifest) {
   if (!allEntries.length) {
     return `
       <div class="empty-state" id="no-chapters-state">
-        <h3>Nenhum capítulo ainda</h3>
-        <p>Clique em “Adicionar capítulo” para começar.</p>
+        <h3>${t("noChapters")}</h3>
+        <p>${t("noChaptersDescription")}</p>
       </div>
     `;
   }
@@ -48,16 +49,16 @@ export function renderChapterCards(manifest) {
   return `
     <div class="chapter-manager">
       <div class="chapter-toolbar-light">
-        <input id="chapter-search-input" data-keep-enabled="true" value="${escapeHtml(state.editor.chapterSearch)}" placeholder="Buscar capítulo por número ou título..." />
-        <span class="chapter-count">${entries.length} / ${allEntries.length} capítulos</span>
+        <input id="chapter-search-input" data-keep-enabled="true" value="${attr(state.editor.chapterSearch)}" placeholder="${attr(t("chapterSearchPlaceholder"))}" />
+        <span class="chapter-count">${entries.length} / ${allEntries.length} ${t("chapters")}</span>
       </div>
 
       ${visibleEntries.length ? renderChapterTable(visibleEntries) : renderNoResults()}
 
       <div class="chapter-pagination">
-        <button class="btn ghost small" type="button" data-chapter-page="prev" ${state.editor.chapterPage <= 1 ? "disabled" : ""}>Anterior</button>
-        <span>Página ${state.editor.chapterPage} de ${totalPages}</span>
-        <button class="btn ghost small" type="button" data-chapter-page="next" ${state.editor.chapterPage >= totalPages ? "disabled" : ""}>Próxima</button>
+        <button class="btn ghost small" type="button" data-chapter-page="prev" ${state.editor.chapterPage <= 1 ? "disabled" : ""}>${t("previous")}</button>
+        <span>${t("page")} ${state.editor.chapterPage} ${t("of")} ${totalPages}</span>
+        <button class="btn ghost small" type="button" data-chapter-page="next" ${state.editor.chapterPage >= totalPages ? "disabled" : ""}>${t("next")}</button>
       </div>
     </div>
   `;
@@ -66,8 +67,8 @@ export function renderChapterCards(manifest) {
 function renderNoResults() {
   return `
     <div class="empty-state compact-empty">
-      <h3>Nenhum capítulo encontrado</h3>
-      <p>Ajuste a busca para ver outros capítulos.</p>
+      <h3>${t("noChapterFound")}</h3>
+      <p>${t("noChapterFoundDescription")}</p>
     </div>
   `;
 }
@@ -78,12 +79,12 @@ function renderChapterTable(entries) {
       <table class="chapter-table">
         <thead>
           <tr>
-            <th>Nº</th>
-            <th>Título</th>
-            <th>Volume</th>
-            <th>Grupos</th>
-            <th>Imagens</th>
-            <th>Ações</th>
+            <th>${t("numberAbbr")}</th>
+            <th>${t("title")}</th>
+            <th>${t("volume")}</th>
+            <th>${t("groups")}</th>
+            <th>${t("images")}</th>
+            <th>${t("actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -99,16 +100,16 @@ export function renderChapterRow(number, chapter = {}) {
     <tr data-chapter-card data-chapter-number="${escapeHtml(number)}">
       <td><span class="badge small-badge">${escapeHtml(number)}</span></td>
       <td>
-        <strong>${escapeHtml(chapter.title || "Sem título")}</strong>
-        <span class="chapter-mobile-meta">${countChapterGroups(chapter)} grupos · ${countChapterImages(chapter)} imagens</span>
+        <strong>${escapeHtml(chapter.title || t("untitled"))}</strong>
+        <span class="chapter-mobile-meta">${countChapterGroups(chapter)} ${t("groups")} · ${countChapterImages(chapter)} ${t("images")}</span>
       </td>
       <td>${escapeHtml(chapter.volume || "-")}</td>
       <td>${countChapterGroups(chapter)}</td>
       <td>${countChapterImages(chapter)}</td>
       <td>
         <div class="chapter-actions compact-actions">
-          <button class="btn primary small" type="button" data-edit-chapter="${escapeHtml(number)}">Editar</button>
-          <button class="btn danger small" type="button" data-remove-chapter="${escapeHtml(number)}">Remover</button>
+          <button class="btn primary small" type="button" data-edit-chapter="${escapeHtml(number)}">${t("edit")}</button>
+          <button class="btn danger small" type="button" data-remove-chapter="${escapeHtml(number)}">${t("remove")}</button>
         </div>
       </td>
     </tr>
