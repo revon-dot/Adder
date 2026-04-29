@@ -1,4 +1,4 @@
-import { FINE_GRAINED_TOKEN_URL } from "../state.js";
+import { FINE_GRAINED_TOKEN_URL, state } from "../state.js";
 import { attr } from "../utils.js";
 import { renderLanguageToggle, t } from "../i18n.js";
 
@@ -16,7 +16,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
     <header class="dashboard-header dashboard-compact connect-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="${t("back") || "Voltar"}">${backIcon()}</button>
+          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="${t("back")}">${backIcon()}</button>
           <div>
             <p class="kicker">${t("connection")}</p>
             <h2>${t("connectRepo")}</h2>
@@ -61,29 +61,29 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
       <form id="connect-form" class="form-grid" autocomplete="off">
         <label class="field">
           <span>${t("githubUsername")}</span>
-          <input name="username" value="${attr(prefill.username || prefill.owner || "")}" placeholder="seuusuario" required />
+          <input name="username" value="${attr(prefill.username || prefill.owner || "")}" placeholder="${attr(t("usernamePlaceholder"))}" required />
           <p class="hint">${t("usernameHint")}</p>
         </label>
 
         <label class="field">
           <span>${t("personalAccessToken")}</span>
-          <input name="token" value="${attr(token)}" placeholder="github_pat_..." type="password" required />
+          <input name="token" value="${attr(token)}" placeholder="${attr(t("tokenPlaceholder"))}" type="password" required />
           <p class="hint">${t("tokenHint")}</p>
         </label>
 
         <label class="field">
           <span>${t("repositoryOwner")}</span>
-          <input name="owner" value="${attr(prefill.owner || prefill.username || "")}" placeholder="seuusuario-ou-org" required />
+          <input name="owner" value="${attr(prefill.owner || prefill.username || "")}" placeholder="${attr(t("repositoryOwnerPlaceholder"))}" required />
         </label>
 
         <label class="field">
           <span>${t("repositoryName")}</span>
-          <input name="repo" value="${attr(prefill.repo || "")}" placeholder="meus-jsons-cubari" required />
+          <input name="repo" value="${attr(prefill.repo || "")}" placeholder="${attr(t("repositoryNamePlaceholder"))}" required />
         </label>
 
         <label class="field">
           <span>${t("branch")}</span>
-          <input name="branch" value="${attr(prefill.branch || "main")}" placeholder="main" required />
+          <input name="branch" value="${attr(prefill.branch || "main")}" placeholder="${attr(t("branchPlaceholder"))}" required />
         </label>
 
         <label class="field">
@@ -98,7 +98,7 @@ export function renderConnectPage(prefill = {}, imgchestToken = "") {
             <p>${t("imgChestHelp")}</p>
             <label class="field">
               <span>${t("imgChestApiToken")}</span>
-              <input name="imgchestToken" value="${attr(imgchestToken)}" placeholder="${attr(t("optional"))}" type="password" />
+              <input name="imgchestToken" value="${attr(imgchestToken)}" placeholder="${attr(t("imgChestTokenPlaceholder"))}" type="password" />
               <p class="hint">${t("imgChestTokenHint")}</p>
             </label>
             <label class="checkbox-row">
@@ -147,6 +147,5 @@ function stateLangStep(step) {
       9: "Copy the generated token and paste it into the Personal Access Token field below. GitHub only shows the token once.",
     },
   };
-  const lang = document.documentElement.lang === "en" ? "en-US" : "pt-BR";
-  return steps[lang][step];
+  return steps[state.lang === "en-US" ? "en-US" : "pt-BR"][step];
 }
