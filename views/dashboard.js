@@ -5,6 +5,7 @@ import { normalizeManifest } from "../cubari.js";
 import { repoLabel, ensureClient } from "../repo.js";
 import { renderDashboardPage } from "./dashboard-page.js";
 import { bindDashboardEvents } from "./dashboard-events.js";
+import { t } from "../i18n.js";
 
 function withTimeout(promise, ms = 20000) {
   return Promise.race([
@@ -15,8 +16,8 @@ function withTimeout(promise, ms = 20000) {
   ]);
 }
 
-export async function loadDashboard(navigateToDashboard, navigateToConnect = null) {
-  renderLoading("Lendo arquivos JSON...");
+export async function loadDashboard(navigateToDashboard, navigateToConnect = null, navigateToEditor = null) {
+  renderLoading(t("loadingJsons"));
   try {
     const client = ensureClient();
     const config = state.config;
@@ -59,7 +60,7 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
     state.files = loaded;
     navigateToDashboard();
   } catch (error) {
-    renderLoadError(errorMessage(error), navigateToDashboard, navigateToConnect);
+    renderLoadError(error, navigateToDashboard, navigateToConnect, navigateToEditor);
   }
 }
 
@@ -75,22 +76,28 @@ function renderLoading(text = "Carregando...") {
   `);
 }
 
-function renderLoadError(message, navigateToDashboard, navigateToConnect) {
+function renderLoadError(error, navigateToDashboard, navigateToConnect, navigateToEditor) {
+  const message = error?.status === 404 ? t("dashboardLoadErrorNotFound") : errorMessage(error);
+  state.files = [];
   render(`
     <section class="panel loading">
       <div>
-        <h2>Não foi possível carregar os JSONs</h2>
+        <h2>${t("dashboardLoadErrorTitle")}</h2>
         <p>${escapeHtml(repoLabel())}</p>
         <div class="error-box" style="margin: 16px 0; text-align: left;">${escapeHtml(message)}</div>
         <div class="row-actions" style="justify-content: center;">
-          <button class="btn primary" id="retry-dashboard-load-btn">Tentar novamente</button>
-          <button class="btn ghost" id="load-error-change-repo-btn">Trocar repo</button>
+          <button class="btn primary" id="load-error-new-manga-btn">${t("newManga")}</button>
+          <button class="btn ghost" id="retry-dashboard-load-btn">${t("retry")}</button>
+          <button class="btn ghost" id="load-error-change-repo-btn">${t("changeRepo")}</button>
         </div>
       </div>
     </section>
   `);
 
-  document.querySelector("#retry-dashboard-load-btn")?.addEventListener("click", () => loadDashboard(navigateToDashboard, navigateToConnect));
+  document.querySelector("#load-error-new-manga-btn")?.addEventListener("click", () => {
+    if (navigateToEditor) navigateToEditor(null);
+  });
+  document.querySelector("#retry-dashboard-load-btn")?.addEventListener("click", () => loadDashboard(navigateToDashboard, navigateToConnect, navigateToEditor));
   document.querySelector("#load-error-change-repo-btn")?.addEventListener("click", () => {
     if (navigateToConnect) navigateToConnect({ ...state.config });
   });
