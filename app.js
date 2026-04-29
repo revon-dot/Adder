@@ -2,6 +2,7 @@ import { renderLanding } from "./views/landing.js";
 import { renderConnect } from "./views/connect.js";
 import { renderDashboard, loadDashboard } from "./views/dashboard.js";
 import { openEditor } from "./views/editor.js";
+import { loadSavedLanguage, saveLanguage } from "./i18n.js";
 
 function navigateToLanding() {
   renderLanding(navigateToConnect);
@@ -21,6 +22,7 @@ function navigateToEditor(file) {
 
 // Initial render
 try {
+  saveLanguage(loadSavedLanguage());
   navigateToLanding();
 } catch (error) {
   console.error("Error during initial render:", error);
