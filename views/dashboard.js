@@ -119,8 +119,12 @@ export function renderDashboard(navigateToEditor, navigateToConnect) {
   });
   document.querySelector("#change-repo-btn").addEventListener("click", () => navigateToConnect({ ...state.config }));
   document.querySelector("#search-input").addEventListener("input", (event) => {
+    const cursorPosition = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
     state.search = event.currentTarget.value;
     renderDashboard(navigateToEditor, navigateToConnect);
+    const searchInput = document.querySelector("#search-input");
+    searchInput?.focus();
+    searchInput?.setSelectionRange(cursorPosition, cursorPosition);
   });
 
   document.querySelectorAll("[data-open-file]").forEach((button) => {
