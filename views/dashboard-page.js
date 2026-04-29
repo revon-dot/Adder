@@ -56,7 +56,7 @@ export function renderDashboardPage() {
         <span class="status-pill">${filtered.length} / ${state.files.length} JSONs</span>
       </div>
 
-      ${filtered.length ? `<div class="cards-grid">${filtered.map(({ file, index }) => renderMangaCard(file, index)).join("")}</div>` : renderEmptyDashboard()}
+      ${filtered.length ? renderMangaList(filtered) : renderEmptyDashboard()}
     </section>
   `;
 }
@@ -71,27 +71,56 @@ function renderEmptyDashboard() {
   `;
 }
 
-function renderMangaCard(file, index) {
+function renderMangaList(filtered) {
+  return `
+    <div class="manga-list-wrap">
+      <table class="manga-table">
+        <thead>
+          <tr>
+            <th>Obra</th>
+            <th>Arquivo</th>
+            <th>Capítulos</th>
+            <th>Imagens</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(({ file, index }) => renderMangaRow(file, index)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderMangaRow(file, index) {
   const title = file.data?.title || file.name;
   const chapters = file.data ? Object.keys(file.data.chapters || {}).length : 0;
   const images = file.data ? countImages(file.data) : 0;
   const cover = file.data?.cover || "";
-  const error = file.error ? `<p class="error-box">${escapeHtml(file.error)}</p>` : "";
+  const error = file.error ? `<span class="manga-row-error">${escapeHtml(file.error)}</span>` : "";
   return `
-    <article class="card">
-      <div class="cover">
-        ${cover ? `<img src="${attr(cover)}" alt="Capa de ${attr(title)}" loading="lazy" onerror="this.remove(); this.parentElement.innerHTML='<span class=&quot;cover-placeholder&quot;>Sem capa</span>'" />` : `<span class="cover-placeholder">Sem capa</span>`}
-      </div>
-      <div class="card-body">
-        <h3 class="card-title">${escapeHtml(title)}</h3>
-        <p class="card-meta">${escapeHtml(file.name)}</p>
-        ${error}
-        <p class="card-meta">${chapters} capítulos · ${images} imagens</p>
-        <div class="card-actions">
+    <tr class="manga-row">
+      <td>
+        <div class="manga-title-cell">
+          <div class="manga-thumb">
+            ${cover ? `<img src="${attr(cover)}" alt="Capa de ${attr(title)}" loading="lazy" onerror="this.remove(); this.parentElement.innerHTML='<span>—</span>'" />` : `<span>—</span>`}
+          </div>
+          <div>
+            <strong>${escapeHtml(title)}</strong>
+            ${error}
+            <span class="manga-mobile-meta">${chapters} capítulos · ${images} imagens</span>
+          </div>
+        </div>
+      </td>
+      <td><span class="file-name">${escapeHtml(file.name)}</span></td>
+      <td>${chapters}</td>
+      <td>${images}</td>
+      <td>
+        <div class="manga-actions compact-actions">
           <button class="btn primary small" data-open-file="${index}" ${file.data ? "" : "disabled"}>Editar</button>
           <button class="btn ghost small" data-copy-cubari="${index}">Copiar Cubari</button>
         </div>
-      </div>
-    </article>
+      </td>
+    </tr>
   `;
 }
