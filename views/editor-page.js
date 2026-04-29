@@ -11,6 +11,12 @@ function backIcon() {
   `;
 }
 
+function label(key, pt, en) {
+  const value = t(key);
+  if (value !== key) return value;
+  return document.documentElement.lang === "en" ? en : pt;
+}
+
 function renderSavedLinks(current) {
   if (current.isNew || !current.path) return "";
   const cubariUrl = cubariUrlForPath(current.path);
@@ -22,7 +28,7 @@ function renderSavedLinks(current) {
       <div class="row-actions">
         ${githubUrl ? `<a class="btn ghost small" href="${attr(githubUrl)}" target="_blank" rel="noreferrer">${t("openGithub")}</a>` : ""}
         ${cubariUrl ? `<button class="btn ghost small" type="button" id="copy-editor-cubari-btn" data-cubari-url="${attr(cubariUrl)}">${t("copyCubari")}</button>` : ""}
-        <button class="btn danger small" type="button" id="delete-work-btn">${t("deleteWork")}</button>
+        <button class="btn danger small" type="button" id="delete-work-btn">${label("deleteWork", "Deletar obra", "Delete work")}</button>
       </div>
     </section>
   `;
