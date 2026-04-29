@@ -109,9 +109,6 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
   const close = () => modal.remove();
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal) close();
-  });
 
   modal.addEventListener("click", async (event) => {
     const target = event.target;
