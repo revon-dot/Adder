@@ -29,6 +29,8 @@ function renderSavedLinks(current) {
 }
 
 export function renderEditorPage(current, manifest) {
+  const fileNameReadonly = current.isNew ? "readonly aria-readonly=\"true\"" : "";
+
   return `
     <header class="dashboard-header dashboard-compact editor-header">
       <div class="dashboard-main">
@@ -59,8 +61,8 @@ export function renderEditorPage(current, manifest) {
         <div class="field group editor-main-fields">
           <label class="field">
             <span>${t("fileName")}</span>
-            <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" />
-            <p class="hint">${t("fileNameHint")}</p>
+            <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" ${fileNameReadonly} />
+            <p class="hint">${current.isNew ? t("fileNameAutoHint") : t("fileNameHint")}</p>
           </label>
           <label class="field">
             <span>${t("title")}</span>
