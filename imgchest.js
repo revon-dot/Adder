@@ -16,7 +16,6 @@ function uniqueValidLinks(values = []) {
   for (const raw of values) {
     const url = cleanUrl(raw);
     if (!IMG_OK.test(url)) continue;
-    IMG_OK.lastIndex = 0;
     if (seen.has(url)) continue;
     seen.add(url);
     links.push(url);
@@ -43,6 +42,11 @@ function normalizeImgChestAlbumUrl(albumUrl = "") {
 function isLikelyCorsError(error) {
   const message = String(error?.message || error || "").toLowerCase();
   return message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+}
+
+function imagePosition(image, index) {
+  const position = Number(image?.position);
+  return Number.isFinite(position) ? position : index;
 }
 
 export function extractImgChestPostId(albumUrl = "") {
@@ -81,7 +85,9 @@ function extractLinksFromHtml(html = "") {
       }
     });
 
-    return uniqueValidLinks([...domLinks, ...regexLinks]);
+    // Prefer the raw HTML scan first because it preserves the same order the links appear in the album page.
+    // DOM extraction remains as fallback for lazy-loaded attributes that may not be caught by the regex.
+    return uniqueValidLinks([...regexLinks, ...domLinks]);
   } catch {
     return regexLinks;
   }
@@ -109,9 +115,9 @@ async function getPostWithApi(postId, token = "") {
   const images = Array.isArray(payload?.data?.images) ? payload.data.images : [];
   return uniqueValidLinks(
     images
-      .slice()
-      .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
-      .map((image) => image.link)
+      .map((image, index) => ({ image, index }))
+      .sort((a, b) => imagePosition(a.image, a.index) - imagePosition(b.image, b.index))
+      .map(({ image }) => image.link)
   );
 }
 
