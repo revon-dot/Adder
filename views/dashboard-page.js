@@ -28,7 +28,7 @@ export function renderDashboardPage() {
     <header class="dashboard-header dashboard-compact">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <div class="dashboard-logo">A</div>
+          <div class="dashboard-logo favicon-logo"><img src="./favicon.svg" alt="Adder" /></div>
           <div>
             <p class="kicker">Dashboard</p>
             <h2>Biblioteca</h2>
