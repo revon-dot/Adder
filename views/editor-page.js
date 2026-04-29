@@ -21,7 +21,7 @@ function renderSavedLinks(current) {
 
 export function renderEditorPage(current, manifest) {
   return `
-    <header class="editor-header dashboard-compact">
+    <header class="dashboard-header dashboard-compact editor-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
           <div class="dashboard-logo">A</div>
