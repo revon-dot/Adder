@@ -1,13 +1,21 @@
 import { FINE_GRAINED_TOKEN_URL } from "../state.js";
 import { attr } from "../utils.js";
 
+function backIcon() {
+  return `
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M15 18 9 12l6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `;
+}
+
 export function renderConnectPage(prefill = {}, imgchestToken = "") {
   const token = prefill.token || "";
   return `
     <header class="dashboard-header dashboard-compact connect-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="Voltar">‹</button>
+          <button class="dashboard-logo logo-button back-logo-button" type="button" id="back-home-btn" aria-label="Voltar">${backIcon()}</button>
           <div>
             <p class="kicker">Conexão</p>
             <h2>Conectar ao repositório</h2>
