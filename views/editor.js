@@ -10,24 +10,52 @@ import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 
+function editorSnapshot(fileName, manifest) {
+  return JSON.stringify({
+    fileName: String(fileName || ""),
+    manifest: normalizeManifest(manifest || emptyManifest()),
+  });
+}
+
+function getCurrentEditorSnapshot() {
+  const result = collectManifestFromEditor({ silent: true });
+  if (!result) return "";
+  return editorSnapshot(result.fileName, result.manifest);
+}
+
+function hasUnsavedChanges() {
+  if (!state.current?.savedSnapshot) return false;
+  return getCurrentEditorSnapshot() !== state.current.savedSnapshot;
+}
+
+function confirmLeaveEditor() {
+  if (!hasUnsavedChanges()) return true;
+  return confirm("Você tem alterações não salvas. Sair mesmo assim?");
+}
+
 export function openEditor(file, navigateToDashboard) {
   if (!file) {
-    // New manifest
     const data = emptyManifest();
+    const name = "novo-manga.json";
     state.current = {
       isNew: true,
-      name: "novo-manga.json",
-      path: githubPath.joinPath(state.config.jsonPath, "novo-manga.json"),
+      name,
+      path: githubPath.joinPath(state.config.jsonPath, name),
       sha: null,
       data,
+      savedSnapshot: editorSnapshot(name, data),
     };
   } else {
+    const data = structuredClone(file.data);
     state.current = {
       isNew: false,
       name: file.name,
       path: file.path,
       sha: file.sha,
-      data: structuredClone(file.data),
+      data,
+      htmlUrl: file.htmlUrl,
+      downloadUrl: file.downloadUrl,
+      savedSnapshot: editorSnapshot(file.name, data),
     };
   }
   renderEditor(navigateToDashboard);
@@ -41,13 +69,23 @@ export function renderEditor(navigateToDashboard) {
 }
 
 function bindEditorEvents(navigateToDashboard) {
-  document.querySelector("#back-dashboard-btn").addEventListener("click", navigateToDashboard);
-  document.querySelector("#save-btn").addEventListener("click", () => saveCurrentEditor(navigateToDashboard, renderEditor));
-  document.querySelector("#preview-json-btn").addEventListener("click", () => {
-    const result = collectManifestFromEditor();
-    if (result) showJsonModal(result.manifest);
+  document.querySelector("#back-dashboard-btn")?.addEventListener("click", () => {
+    if (confirmLeaveEditor()) navigateToDashboard();
   });
-  document.querySelector("#add-chapter-btn").addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, updateEditorStats), updateEditorStats));
+
+  window.onbeforeunload = hasUnsavedChanges()
+    ? (event) => {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    : null;
+
+  document.querySelector("#save-btn")?.addEventListener("click", () => saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot));
+  document.querySelector("#preview-json-btn")?.addEventListener("click", () => {
+    const result = collectManifestFromEditor();
+    if (result) showJsonModal(result.manifest, result.validation);
+  });
+  document.querySelector("#add-chapter-btn")?.addEventListener("click", () => showAddChapterModal(renderChapterCard, (scope) => bindChapterButtons(scope, updateEditorStats), updateEditorStats));
 
   const coverInput = document.querySelector("input[name='cover']");
   coverInput?.addEventListener("input", () => updateEditorStats());
