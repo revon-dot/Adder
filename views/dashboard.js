@@ -2,7 +2,8 @@ import { state } from "../state.js";
 import { render, setBusy, toast, errorMessage } from "../ui.js";
 import { escapeHtml, attr } from "../utils.js";
 import { countImages, normalizeManifest } from "../cubari.js";
-import { repoLabel, ensureClient, cubariUrlForPath, copyText } from "../helpers.js";
+import { repoLabel, ensureClient, cubariUrlForPath } from "../helpers.js";
+import { copyText } from "../clipboard.js";
 
 export async function loadDashboard(navigateToDashboard) {
   renderLoading("Lendo arquivos JSON...");
