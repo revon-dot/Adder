@@ -12,7 +12,7 @@ function navigateToConnect(prefill = {}) {
 }
 
 function navigateToDashboard() {
-  loadDashboard(() => renderDashboard(navigateToEditor, navigateToConnect));
+  loadDashboard(() => renderDashboard(navigateToEditor, navigateToConnect), navigateToConnect, navigateToEditor);
 }
 
 function navigateToEditor(file) {
