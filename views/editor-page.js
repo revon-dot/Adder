@@ -19,18 +19,6 @@ function renderSavedLinks(current) {
   `;
 }
 
-function renderCoverStatus(cover = "") {
-  if (!cover) {
-    return `<div class="cover-url-status" id="cover-url-status">Nenhuma URL de capa informada.</div>`;
-  }
-  return `
-    <div class="cover-url-status" id="cover-url-status">
-      <strong>URL de capa preenchida.</strong>
-      <span>${escapeHtml(cover)}</span>
-    </div>
-  `;
-}
-
 export function renderEditorPage(current, manifest) {
   return `
     <header class="editor-header dashboard-compact">
@@ -60,7 +48,7 @@ export function renderEditorPage(current, manifest) {
     
     <section class="panel editor-panel">
       ${renderSavedLinks(current)}
-      <form id="editor-form" class="form-grid">
+      <form id="editor-form" class="form-grid editor-form-block">
         <div class="field group">
           <label class="field">
             <span>Nome do arquivo</span>
@@ -86,19 +74,14 @@ export function renderEditorPage(current, manifest) {
             <span>Autor</span>
             <input name="author" value="${attr(manifest.author)}" placeholder="Nome do autor" />
           </label>
-        </div>
-        
-        <div class="field group">
           <label class="field">
             <span>Capa</span>
             <input name="cover" value="${attr(manifest.cover)}" placeholder="URL da imagem de capa" />
-            <p class="hint">A imagem não é carregada no editor para manter a página leve.</p>
           </label>
-          ${renderCoverStatus(manifest.cover)}
         </div>
       </form>
       
-      <div class="editor-stats">
+      <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">Adicionar capítulo</button>
       </div>
       
