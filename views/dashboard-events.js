@@ -10,6 +10,7 @@ function bindClick(selector, handler) {
 export function bindDashboardEvents({ navigateToEditor, navigateToConnect, renderDashboard, loadDashboard }) {
   bindClick("#new-manga-btn", () => navigateToEditor(null));
   bindClick("#empty-new-btn", () => navigateToEditor(null));
+  bindClick("#empty-change-repo-btn", () => navigateToConnect({ ...state.config }));
   bindClick("#refresh-btn", async () => {
     try {
       setBusy(true);
