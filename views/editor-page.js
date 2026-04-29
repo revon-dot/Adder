@@ -24,7 +24,7 @@ export function renderEditorPage(current, manifest) {
     <header class="dashboard-header dashboard-compact editor-header">
       <div class="dashboard-main">
         <div class="dashboard-title-wrap">
-          <div class="dashboard-logo">A</div>
+          <button class="dashboard-logo logo-button" type="button" id="logo-dashboard-btn" aria-label="Voltar ao dashboard">A</button>
           <div>
             <p class="kicker">Editor</p>
             <h2>${escapeHtml(manifest.title || "Novo mangá")}</h2>
