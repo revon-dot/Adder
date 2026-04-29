@@ -78,6 +78,11 @@ export function renderEditor(navigateToDashboard) {
       <form id="editor-form" class="form-grid">
         <div class="field group">
           <label class="field">
+            <span>Nome do arquivo</span>
+            <input name="fileName" value="${attr(current.name)}" placeholder="manga.json" />
+            <p class="hint">Mantenha o mesmo nome para atualizar o JSON atual. Use .json no final.</p>
+          </label>
+          <label class="field">
             <span>Título</span>
             <input name="title" value="${attr(manifest.title)}" placeholder="Título do mangá" />
           </label>
