@@ -1,10 +1,10 @@
 import { escapeHtml, attr } from "./utils.js";
-import { prettyJson, scrapeImgChestAlbum, extractImgChestLinksFromText } from "./cubari.js"; // Wait, I need to check where scrapeImgChestAlbum is
+import { prettyJson } from "./cubari.js"; // Correção aqui
 import { copyText, collectManifestFromEditor, getNextChapterNumber } from "./helpers.js";
 import { toast, setBusy } from "./ui.js";
 import { state, getSavedImgChestToken } from "./state.js";
 
-// Re-importing scrape logic as it was in app.js or its own file
+// Re-importing scrape logic
 import { scrapeImgChestAlbum as scrapeImgChest, extractImgChestLinksFromText as extractLinks } from "./imgchest.js";
 
 export function showJsonModal(manifest) {
