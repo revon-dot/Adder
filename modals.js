@@ -86,12 +86,12 @@ export function showAddChapterModal(renderChapterCard, bindChapterButtons, updat
         </label>
         <label class="field">
           <span>Volume</span>
-          <input name="volume" value="1" placeholder="opcional" />
+          <input name="volume" placeholder="opcional" />
         </label>
 
         <label class="field">
           <span>Nome do grupo</span>
-          <input name="groupName" value="Eleven" placeholder="vazio = grupo sem nome" />
+          <input name="groupName" placeholder="vazio = grupo sem nome" />
         </label>
 
         <div class="imgchest-import-box span-2">
