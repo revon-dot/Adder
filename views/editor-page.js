@@ -1,0 +1,81 @@
+import { escapeHtml, attr } from "../utils.js";
+import { repoLabel } from "../repo.js";
+import { renderChapterCards } from "./editor-renderers.js";
+
+export function renderEditorPage(current, manifest) {
+  return `
+    <header class="editor-header dashboard-compact">
+      <div class="dashboard-main">
+        <div class="dashboard-title-wrap">
+          <div class="dashboard-logo">A</div>
+          <div>
+            <p class="kicker">Editor</p>
+            <h2>${escapeHtml(manifest.title || "Novo mangá")}</h2>
+          </div>
+        </div>
+
+        <div class="dashboard-status-row">
+          <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
+          <span class="mini-stat"><strong id="stat-chapters">0</strong> capítulos</span>
+          <span class="mini-stat"><strong id="stat-groups">0</strong> grupos</span>
+          <span class="mini-stat"><strong id="stat-images">0</strong> imagens</span>
+        </div>
+      </div>
+
+      <div class="toolbar dashboard-toolbar">
+        <button class="btn primary" id="save-btn">Salvar no GitHub</button>
+        <button class="btn ghost" id="preview-json-btn">Pré-visualizar JSON</button>
+        <button class="btn ghost" id="back-dashboard-btn">Dashboard</button>
+      </div>
+    </header>
+    
+    <section class="panel editor-panel">
+      <form id="editor-form" class="form-grid">
+        <div class="field group">
+          <label class="field">
+            <span>Nome do arquivo</span>
+            <input name="fileName" value="${attr(current.name)}" placeholder="manga.json" />
+            <p class="hint">Mantenha o mesmo nome para atualizar o JSON atual. Use .json no final.</p>
+          </label>
+          <label class="field">
+            <span>Título</span>
+            <input name="title" value="${attr(manifest.title)}" placeholder="Título do mangá" />
+          </label>
+          <label class="field">
+            <span>Descrição</span>
+            <textarea name="description" placeholder="Descrição do mangá">${attr(manifest.description)}</textarea>
+          </label>
+        </div>
+        
+        <div class="field group">
+          <label class="field">
+            <span>Artista</span>
+            <input name="artist" value="${attr(manifest.artist)}" placeholder="Nome do artista" />
+          </label>
+          <label class="field">
+            <span>Autor</span>
+            <input name="author" value="${attr(manifest.author)}" placeholder="Nome do autor" />
+          </label>
+        </div>
+        
+        <div class="field group">
+          <label class="field">
+            <span>Capa</span>
+            <input name="cover" value="${attr(manifest.cover)}" placeholder="URL da imagem de capa" />
+          </label>
+          <div id="preview-cover" class="cover-preview">
+            ${manifest.cover ? `<img src="${attr(manifest.cover)}" alt="Capa" onerror="this.parentElement.innerHTML='<div class=&quot;cover-placeholder&quot;>Erro ao carregar capa</div>'" />` : `<div class="cover-placeholder">Sem capa</div>`}
+          </div>
+        </div>
+      </form>
+      
+      <div class="editor-stats">
+        <button class="btn primary" id="add-chapter-btn">Adicionar capítulo</button>
+      </div>
+      
+      <section class="panel" id="chapters-list">
+        ${renderChapterCards(manifest)}
+      </section>
+    </section>
+  `;
+}
