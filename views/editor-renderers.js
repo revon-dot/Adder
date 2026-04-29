@@ -1,5 +1,13 @@
-import { escapeHtml, attr } from "../utils.js";
-import { emptyChapter, sortChapterEntries } from "../cubari.js";
+import { escapeHtml } from "../utils.js";
+import { countImages, sortChapterEntries } from "../cubari.js";
+
+function countChapterGroups(chapter = {}) {
+  return Object.keys(chapter.groups || {}).length;
+}
+
+function countChapterImages(chapter = {}) {
+  return countImages({ chapters: { current: chapter } });
+}
 
 export function renderChapterCards(manifest) {
   const entries = sortChapterEntries(manifest.chapters || {});
@@ -12,75 +20,32 @@ export function renderChapterCards(manifest) {
     `;
   }
 
-  return entries.map(([number, chapter]) => renderChapterCard(number, chapter)).join("");
+  return `
+    <div class="chapter-list" data-chapter-list>
+      ${entries.map(([number, chapter]) => renderChapterRow(number, chapter)).join("")}
+    </div>
+  `;
 }
 
-export function renderChapterCard(number, chapter) {
-  const safeChapter = { ...emptyChapter(), ...chapter };
+export function renderChapterRow(number, chapter = {}) {
+  const title = chapter.title || "Sem título";
+  const groups = countChapterGroups(chapter);
+  const images = countChapterImages(chapter);
   return `
-    <article class="chapter-card" data-chapter-card>
-      <div class="chapter-top">
-        <div class="chapter-title-row">
-          <span class="badge">${escapeHtml(number)}</span>
-          <h3>Capítulo</h3>
-        </div>
-        <div class="chapter-actions">
-          <button class="btn ghost small" type="button" data-toggle-chapter>Alternar</button>
-          <button class="btn danger small" type="button" data-remove-chapter>Remover capítulo</button>
+    <article class="chapter-row" data-chapter-card data-chapter-number="${escapeHtml(number)}">
+      <div class="chapter-row-main">
+        <span class="badge">${escapeHtml(number)}</span>
+        <div>
+          <h3>${escapeHtml(title)}</h3>
+          <p class="card-meta">${groups} grupos · ${images} imagens · volume ${escapeHtml(chapter.volume || "-")}</p>
         </div>
       </div>
-
-      <div class="form-grid">
-        <label class="field">
-          <span>Número</span>
-          <input data-chapter-number value="${attr(number)}" placeholder="1" required />
-        </label>
-        <label class="field">
-          <span>Título do capítulo</span>
-          <input data-chapter-title value="${attr(safeChapter.title)}" placeholder="Capítulo 1" />
-        </label>
-        <label class="field">
-          <span>Volume</span>
-          <input data-chapter-volume value="${attr(safeChapter.volume)}" placeholder="opcional" />
-        </label>
-        <label class="field">
-          <span>Last updated</span>
-          <input data-chapter-updated value="${attr(safeChapter.last_updated || Math.floor(Date.now() / 1000))}" placeholder="timestamp" />
-        </label>
-      </div>
-
-      <div data-groups-list class="chapter-content">
-        ${Object.entries(safeChapter.groups || { "": [] }).map(([groupName, images]) => renderGroupCard(groupName, images)).join("")}
+      <div class="chapter-actions">
+        <button class="btn primary small" type="button" data-edit-chapter="${escapeHtml(number)}">Editar</button>
+        <button class="btn danger small" type="button" data-remove-chapter="${escapeHtml(number)}">Remover</button>
       </div>
     </article>
   `;
 }
 
-function renderGroupCard(groupName = "", images = []) {
-  const text = Array.isArray(images) ? images.join("\n") : String(images || "");
-  return `
-    <section class="group-card" data-group-card>
-      <div class="group-header">
-        <label class="field" style="flex: 1;">
-          <span>Nome do grupo</span>
-          <input data-group-name value="${attr(groupName)}" placeholder="vazio = grupo sem nome" />
-        </label>
-        <button class="btn danger small" type="button" data-remove-group>Remover grupo</button>
-      </div>
-      <div class="imgchest-tools">
-        <label class="field imgchest-url-field">
-          <span>ImgChest album URL</span>
-          <input data-imgchest-url placeholder="https://imgchest.com/p/..." />
-        </label>
-        <div class="inline-tools">
-          <button class="btn ghost small" type="button" data-import-imgchest>Importar ImgChest</button>
-          <button class="btn ghost small" type="button" data-extract-imgchest>Extrair URLs coladas</button>
-        </div>
-      </div>
-      <label class="field">
-        <span>URLs das imagens</span>
-        <textarea data-group-images placeholder="Cole uma URL por linha">${escapeHtml(text)}</textarea>
-      </label>
-    </section>
-  `;
-}
+export const renderChapterCard = renderChapterRow;
