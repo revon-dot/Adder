@@ -1,14 +1,21 @@
 import { escapeHtml, attr } from "./utils.js";
-import { prettyJson } from "./cubari.js";
+import { prettyJson, countImages, countGroups } from "./cubari.js";
 import { collectManifestFromEditor, getNextChapterNumber } from "./editor-collector.js";
 import { copyText } from "./clipboard.js";
 import { toast, setBusy } from "./ui.js";
 import { state, getSavedImgChestToken } from "./state.js";
 
-// Re-importing scrape logic
 import { scrapeImgChestAlbum as scrapeImgChest, extractImgChestLinksFromText as extractLinks } from "./imgchest.js";
 
-export function showJsonModal(manifest) {
+function renderValidationList(title, items = [], className = "notice") {
+  if (!items.length) return "";
+  return `<div class="${className}" style="margin-top: 12px;"><strong>${escapeHtml(title)}</strong><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`;
+}
+
+export function showJsonModal(manifest, validation = { errors: [], warnings: [] }) {
+  const chapters = Object.keys(manifest.chapters || {}).length;
+  const groups = countGroups(manifest);
+  const images = countImages(manifest);
   const modal = document.createElement("div");
   modal.className = "modal-backdrop";
   modal.innerHTML = `
@@ -17,9 +24,12 @@ export function showJsonModal(manifest) {
         <div>
           <p class="kicker">Preview</p>
           <h2>JSON gerado</h2>
+          <p>${chapters} capítulos · ${groups} grupos · ${images} imagens</p>
         </div>
         <button class="btn ghost" data-close-modal>Fechar</button>
       </div>
+      ${renderValidationList("Erros", validation.errors || [], "error-box")}
+      ${renderValidationList("Avisos", validation.warnings || [], "notice")}
       <pre><code>${escapeHtml(prettyJson(manifest))}</code></pre>
       <div class="modal-actions">
         <button class="btn primary" data-copy-json>Copiar JSON</button>
@@ -56,10 +66,6 @@ export function showValidationModal(validation) {
   modal.querySelector("[data-close-modal]").addEventListener("click", () => modal.remove());
 }
 
-// showAddChapterModal depends on renderChapterCard and bindChapterButtons
-// I might need to move those or pass them as arguments.
-// For now, I'll export it and let the view handle the injection if needed, 
-// or import them if I can.
 export function showAddChapterModal(renderChapterCard, bindChapterButtons, updateEditorStats) {
   const next = getNextChapterNumber();
   const savedToken = state.config?.imgchestToken || getSavedImgChestToken();
