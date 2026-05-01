@@ -3,8 +3,8 @@ import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
-import { processImageFiles, filterImageFiles, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
-import { buildGithubImageUploadItems, buildGithubImageFolder, githubImageDefaults } from "../github-image-links.js";
+import { processImageFiles, filterImageFiles, formatOutputFileName, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
+import { buildGithubImageUploadItems, buildGithubImageFolder, buildGithubImagePath, githubImageDefaults } from "../github-image-links.js";
 import { normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
 
 function label(pt, en) {
@@ -51,6 +51,7 @@ const copy = {
   confirmChapterReplace: (number) => label(`O capítulo ${number} já existe no JSON. Substituir o capítulo inteiro na tela depois do upload?`, `Chapter ${number} already exists in the JSON. Replace the entire chapter on screen after upload?`),
   confirmChapterMerge: (number, group) => label(`O capítulo ${number} já existe. Mesclar/substituir apenas o grupo "${group || "sem nome"}" depois do upload?`, `Chapter ${number} already exists. Merge/replace only the "${group || "empty"}" group after upload?`),
   preparing: () => label("Preparando imagens...", "Preparing images..."),
+  prechecking: (current, total, name) => label(`Pré-verificando ${current}/${total} — ${name}`, `Prechecking ${current}/${total} — ${name}`),
   checking: (current, total, name) => label(`Verificando ${current}/${total} — ${name}`, `Checking ${current}/${total} — ${name}`),
   processing: (current, total, name) => label(`Processando ${current}/${total} — ${name}`, `Processing ${current}/${total} — ${name}`),
   uploading: (current, total, name) => label(`Enviando ${current}/${total} — ${name}`, `Uploading ${current}/${total} — ${name}`),
@@ -246,6 +247,43 @@ async function getExistingFileSha(client, path) {
   }
 }
 
+function buildPredictedUploadItems(settings) {
+  const images = filterImageFiles(settings.files);
+  const total = images.length;
+  const jsonFileName = getJsonFileName();
+
+  return images.map((file, index) => {
+    const fileName = formatOutputFileName(index, total);
+    return {
+      file,
+      fileName,
+      path: buildGithubImagePath({
+        imagesRoot: settings.imagesRoot,
+        jsonFileName,
+        chapterNumber: settings.number,
+        fileName,
+      }),
+    };
+  });
+}
+
+async function precheckExistingFiles({ modal, client, settings }) {
+  const predictedItems = buildPredictedUploadItems(settings);
+  const total = predictedItems.length;
+
+  for (let index = 0; index < predictedItems.length; index += 1) {
+    const item = predictedItems[index];
+    setProgress(modal, {
+      done: index,
+      total,
+      text: copy.prechecking(index + 1, total, item.fileName),
+    });
+    item.sha = await getExistingFileSha(client, item.path);
+  }
+
+  return predictedItems.filter((item) => item.sha);
+}
+
 async function runUpload({ modal, form, onSave }) {
   const settings = collectSettings(form);
   const stats = selectedImageStats(form);
@@ -282,9 +320,20 @@ async function runUpload({ modal, form, onSave }) {
   if (progress) progress.hidden = false;
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: settings.files.length * 3, text: copy.preparing() });
+  setProgress(modal, { done: 0, total: settings.files.length, text: copy.preparing() });
 
   try {
+    const client = ensureClient();
+    const existingBeforeProcessing = await precheckExistingFiles({ modal, client, settings });
+
+    if (existingBeforeProcessing.length) {
+      addSummaryLine(modal, "skip", copy.existingFilesFound(existingBeforeProcessing.length));
+      const ok = confirm(copy.confirmOverwriteFiles(existingBeforeProcessing.length));
+      if (!ok) return;
+    } else {
+      addSummaryLine(modal, "ok", copy.noExistingFiles());
+    }
+
     const processed = await processImageFiles(settings.files, {
       maxWidth: settings.maxWidth,
       quality: settings.quality,
@@ -315,7 +364,6 @@ async function runUpload({ modal, form, onSave }) {
 
     addSummaryLine(modal, "skip", `${copy.destination()}: ${folder}`);
 
-    const client = ensureClient();
     const total = items.length;
 
     for (let index = 0; index < items.length; index += 1) {
@@ -327,15 +375,6 @@ async function runUpload({ modal, form, onSave }) {
       });
 
       item.sha = await getExistingFileSha(client, item.path);
-    }
-
-    const existingFileCount = items.filter((item) => item.sha).length;
-    if (existingFileCount) {
-      addSummaryLine(modal, "skip", copy.existingFilesFound(existingFileCount));
-      const ok = confirm(copy.confirmOverwriteFiles(existingFileCount));
-      if (!ok) return;
-    } else {
-      addSummaryLine(modal, "ok", copy.noExistingFiles());
     }
 
     for (let index = 0; index < items.length; index += 1) {
@@ -533,6 +572,11 @@ export function showGithubImageUploadModal({ onSave }) {
   });
   form.conflictMode?.addEventListener("change", () => savePreferences(form));
   form.images?.addEventListener("change", () => updateSelectionPreview(form));
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await runUpload({ modal, form, onSave });
+  });
 
   updateDestinationPreview(form);
   updateSelectionPreview(form);
