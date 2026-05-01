@@ -16,6 +16,8 @@ export const state = {
     chapterPage: 1,
     chapterPageSize: 10,
     chapterPageSizeSelected: false,
+    selectedChapters: [],
+    lastSelectedChapter: null,
   },
   busy: false,
 };
@@ -25,6 +27,8 @@ export function resetEditorListState() {
   state.editor.chapterPage = 1;
   state.editor.chapterPageSize = 10;
   state.editor.chapterPageSizeSelected = false;
+  state.editor.selectedChapters = [];
+  state.editor.lastSelectedChapter = null;
 }
 
 export function loadSavedConfig() {
