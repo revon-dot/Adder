@@ -101,11 +101,21 @@ export function renderEditorPage(current, manifest) {
         </div>
       </form>
       
-      <div class="editor-chapter-actions">
-        <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
-        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Upload lote por pasta", "Batch upload by folder")}</button>
-        <button class="btn ghost" id="multi-chapter-import-btn">${label("Importar lote por URLs", "Batch import by URLs")}</button>
+      <div class="editor-chapter-actions chapter-action-groups">
+        <div class="chapter-action-group">
+          <span class="chapter-action-label">${label("Capítulo único", "Single chapter")}</span>
+          <button class="btn primary" id="add-chapter-btn">${label("Adicionar capítulo", "Add chapter")}</button>
+        </div>
+        <div class="chapter-action-group">
+          <span class="chapter-action-label">${label("Em lote", "Batch")}</span>
+          <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Enviar pasta ao ImgChest", "Upload folder to ImgChest")}</button>
+          <button class="btn ghost" id="multi-chapter-import-btn">${label("Importar URLs do ImgChest", "Import ImgChest URLs")}</button>
+        </div>
       </div>
+      <p class="hint chapter-action-hint">${label(
+        "Enviar pasta faz upload dos arquivos locais. Importar URLs só usa álbuns ImgChest que já existem.",
+        "Uploading a folder sends local files. Importing URLs only uses ImgChest albums that already exist.",
+      )}</p>
       
       <section class="panel" id="chapters-list">
         ${renderChapterCards(manifest)}
