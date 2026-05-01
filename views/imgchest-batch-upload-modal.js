@@ -26,8 +26,8 @@ const copy = {
   folderInput: () => label("Pasta da obra", "Work folder"),
   folderHint: () => label("Selecione a pasta da obra. Cada subpasta numerada vira um capítulo, como 0085/, 0086/ ou 0097.5/.", "Select the work folder. Each numbered subfolder becomes a chapter, such as 0085/, 0086/, or 0097.5/."),
   safetyHint: () => label(
-    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Capítulos que já existem no JSON são pulados antes de chamar a API. Cada capítulo concluído entra no editor imediatamente.`,
-    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. Chapters that already exist in the JSON are skipped before calling the API. Each completed chapter is added to the editor immediately.`,
+    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Capítulos que já existem no JSON são pulados antes de chamar a API. Cada capítulo concluído entra no editor e é salvo automaticamente no GitHub.`,
+    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. Chapters that already exist in the JSON are skipped before calling the API. Each completed chapter is added to the editor and automatically saved to GitHub.`,
   ),
   group: () => label("Grupo", "Group"),
   chapterTitleTemplate: () => label("Título automático", "Automatic title"),
@@ -40,6 +40,7 @@ const copy = {
   duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
   largeBatchWarning: () => label("Lote grande. O upload pode demorar bastante, mas o Adder vai respeitar o ritmo seguro automaticamente.", "Large batch. Upload may take a while, but Adder will automatically use the safe pace."),
   confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size}. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size}. Continue?`),
+  missingTitle: () => label("Informe o título do mangá antes de fazer upload.", "Enter the manga title before uploading."),
   missingToken: () => label("Informe um token do ImgChest.", "Enter an ImgChest token."),
   noFiles: () => label("Selecione uma pasta com imagens.", "Select a folder with images."),
   noChapters: () => label("Nenhuma subpasta com número de capítulo foi detectada.", "No chapter-numbered subfolders were detected."),
@@ -54,6 +55,8 @@ const copy = {
   creatingPostWithImages: (number, images) => label(`Capítulo ${number}: criando post no ImgChest com ${images} imagem(ns).`, `Chapter ${number}: creating ImgChest post with ${images} image(s).`),
   uploadedChapter: (number, count, url) => label(`Capítulo ${number}: ${count} imagens enviadas — ${url}`, `Chapter ${number}: ${count} images uploaded — ${url}`),
   appliedChapter: (number) => label(`Capítulo ${number}: adicionado ao editor.`, `Chapter ${number}: added to the editor.`),
+  savedChapter: (number) => label(`Capítulo ${number}: JSON salvo automaticamente no GitHub.`, `Chapter ${number}: JSON automatically saved to GitHub.`),
+  autosaveFailed: (number) => label(`Capítulo ${number}: upload concluído, mas o salvamento automático no GitHub falhou.`, `Chapter ${number}: upload completed, but automatic GitHub save failed.`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe no JSON.`, `Chapter ${number} skipped because it already exists in the JSON.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
   nothingImported: () => label("Nenhum capítulo novo foi importado.", "No new chapters were imported."),
@@ -103,7 +106,8 @@ function getSelectedFiles(form) {
 function getAlbumNameFromFiles(files = []) {
   const firstPath = String(files[0]?.webkitRelativePath || "");
   const firstSegment = firstPath.split("/").filter(Boolean)[0];
-  return firstSegment || state.current?.data?.title || state.current?.name?.replace(/\.json$/i, "") || "Album";
+  const mangaTitle = String(state.current?.data?.title || "").trim();
+  return mangaTitle || firstSegment || state.current?.name?.replace(/\.json$/i, "") || "Album";
 }
 
 function selectedStats(form) {
@@ -250,11 +254,15 @@ function buildImportedChapter(settings, result) {
   };
 }
 
-async function runUpload({ modal, form, onSave, onChapterUploaded }) {
+async function runUpload({ modal, form, onSave, onChapterUploaded, onAutosaveChapter }) {
   const settings = collectSettings(form);
   const stats = selectedStats(form);
   savePreferences(form);
 
+  if (!String(state.current?.data?.title || "").trim()) {
+    toast(copy.missingTitle(), "error");
+    return false;
+  }
   if (!settings.token) {
     toast(copy.missingToken(), "error");
     return false;
@@ -347,12 +355,18 @@ async function runUpload({ modal, form, onSave, onChapterUploaded }) {
         const importedItem = buildImportedChapter(settings, result);
         imported.push(importedItem);
         onChapterUploaded?.({ ...importedItem, conflictMode: settings.conflictMode });
+        addConsoleLine(modal, "success", copy.appliedChapter(result.number));
+
+        const saved = await onAutosaveChapter?.({ ...importedItem, conflictMode: settings.conflictMode });
+        if (!saved) {
+          throw new Error(copy.autosaveFailed(result.number));
+        }
+        addConsoleLine(modal, "success", copy.savedChapter(result.number));
         processed += 1;
 
         const successMessage = copy.uploadedChapter(result.number, result.imageUrls.length, result.postUrl);
         addSummaryLine(modal, "ok", successMessage);
         addConsoleLine(modal, "success", successMessage);
-        addConsoleLine(modal, "success", copy.appliedChapter(result.number));
         setProgress(modal, { done: processed, total: stats.chapters.length, text: successMessage });
         updateConsoleStats(modal, { processed, total: stats.chapters.length, ok: imported.length, failed: 0, skipped: skipped.length });
       } catch (error) {
@@ -401,7 +415,7 @@ async function runUpload({ modal, form, onSave, onChapterUploaded }) {
   }
 }
 
-export function showImgChestBatchUploadModal({ onSave, onChapterUploaded, onSaveToGithub, onReviewFiles } = {}) {
+export function showImgChestBatchUploadModal({ onSave, onChapterUploaded, onAutosaveChapter, onSaveToGithub, onReviewFiles } = {}) {
   const preferences = loadPreferences();
   const savedToken = getSavedImgChestToken();
   const modal = document.createElement("div");
@@ -509,7 +523,7 @@ export function showImgChestBatchUploadModal({ onSave, onChapterUploaded, onSave
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await runUpload({ modal, form, onSave, onChapterUploaded });
+    await runUpload({ modal, form, onSave, onChapterUploaded, onAutosaveChapter });
   });
 
   updateSelectionPreview(form);
