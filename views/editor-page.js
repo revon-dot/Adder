@@ -18,6 +18,16 @@ function label(pt, en) {
   return document.documentElement.lang === "en" ? en : pt;
 }
 
+function supportsFolderPicker() {
+  const input = document.createElement("input");
+  return "webkitdirectory" in input;
+}
+
+function folderUploadButtonAttrs() {
+  if (supportsFolderPicker()) return "";
+  return `disabled aria-disabled="true" title="${attr(label("Seu navegador não suporta seleção de pastas. Use Chrome/Edge ou o upload individual.", "Your browser does not support folder selection. Use Chrome/Edge or single upload."))}"`;
+}
+
 function renderSavedLinks(current) {
   if (current.isNew || !current.path) return "";
   const cubariUrl = cubariUrlForPath(current.path);
@@ -97,7 +107,7 @@ export function renderEditorPage(current, manifest) {
       <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
         <button class="btn ghost" id="github-image-upload-btn">${githubImageUploadButtonLabel()}</button>
-        <button class="btn ghost" id="github-folder-upload-btn">${githubFolderUploadButtonLabel()}</button>
+        <button class="btn ghost" id="github-folder-upload-btn" ${folderUploadButtonAttrs()}>${githubFolderUploadButtonLabel()}</button>
         <button class="btn ghost" id="multi-chapter-upload-btn">${multiChapterUploadButtonLabel()}</button>
       </div>
       
