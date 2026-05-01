@@ -11,6 +11,9 @@ function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
 }
 
+const LARGE_SELECTION_BYTES = 250 * 1024 * 1024;
+const LARGE_SELECTION_COUNT = 120;
+
 const copy = {
   button: () => label("Upload imagens GitHub", "GitHub image upload"),
   kicker: () => label("Upload direto", "Direct upload"),
@@ -27,6 +30,10 @@ const copy = {
   pagesMode: () => label("GitHub Pages", "GitHub Pages"),
   fileInput: () => label("Imagens", "Images"),
   fileInputHint: () => label("Selecione as páginas do capítulo. O Adder ordena por nome e renomeia como 001.jpg, 002.jpg...", "Select the chapter pages. Adder sorts by name and renames them as 001.jpg, 002.jpg..."),
+  selectionEmpty: () => label("Nenhuma imagem selecionada ainda.", "No images selected yet."),
+  selectionSummary: (count, size) => label(`${count} imagens selecionadas · ${size} antes da compressão`, `${count} images selected · ${size} before compression`),
+  selectionWarning: () => label("Seleção grande. O upload pode demorar e deixar o repositório pesado.", "Large selection. Upload may take a while and make the repository heavy."),
+  confirmLargeSelection: (count, size) => label(`Você selecionou ${count} imagens (${size}) antes da compressão. Continuar mesmo assim?`, `You selected ${count} images (${size}) before compression. Continue anyway?`),
   conflictMode: () => label("Se o capítulo já existir no JSON", "If the chapter already exists in the JSON"),
   conflictCancel: () => label("Cancelar", "Cancel"),
   conflictReplace: () => label("Substituir capítulo", "Replace chapter"),
@@ -68,6 +75,19 @@ function getJsonFileName() {
   return state.current?.name || "manga.json";
 }
 
+function selectedImageStats(form) {
+  const files = Array.from(form.querySelector("input[name='images']")?.files || []);
+  return {
+    files,
+    count: files.length,
+    size: files.reduce((total, file) => total + (Number(file.size) || 0), 0),
+  };
+}
+
+function isLargeSelection({ count, size }) {
+  return count > LARGE_SELECTION_COUNT || size > LARGE_SELECTION_BYTES;
+}
+
 function previewFolderFromForm(form) {
   const number = normalizeChapterNumber(form.number?.value || "");
   const imagesRoot = String(form.imagesRoot?.value || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot;
@@ -82,6 +102,21 @@ function updateDestinationPreview(form) {
   const preview = form.querySelector("[data-github-upload-destination]");
   if (!preview) return;
   preview.textContent = previewFolderFromForm(form);
+}
+
+function updateSelectionPreview(form) {
+  const preview = form.querySelector("[data-github-upload-selection]");
+  if (!preview) return;
+  const stats = selectedImageStats(form);
+
+  if (!stats.count) {
+    preview.textContent = copy.selectionEmpty();
+    preview.classList.remove("warning");
+    return;
+  }
+
+  preview.textContent = copy.selectionSummary(stats.count, formatBytes(stats.size));
+  preview.classList.toggle("warning", isLargeSelection(stats));
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -158,6 +193,7 @@ async function getExistingFileSha(client, path) {
 
 async function runUpload({ modal, form, onSave }) {
   const settings = collectSettings(form);
+  const stats = selectedImageStats(form);
 
   if (!settings.number || !isValidChapterNumber(settings.number)) {
     toast(copy.invalidChapter(), "error");
@@ -167,6 +203,11 @@ async function runUpload({ modal, form, onSave }) {
   if (!settings.files.length) {
     toast(copy.selectImages(), "error");
     return;
+  }
+
+  if (isLargeSelection(stats)) {
+    const ok = confirm(copy.confirmLargeSelection(stats.count, formatBytes(stats.size)));
+    if (!ok) return;
   }
 
   const conflict = resolveExistingChapter({
@@ -278,6 +319,7 @@ async function runUpload({ modal, form, onSave }) {
     setBusy(false);
     disableForm(form, false);
     updateDestinationPreview(form);
+    updateSelectionPreview(form);
   }
 }
 
@@ -367,6 +409,11 @@ export function showGithubImageUploadModal({ onSave }) {
             <p class="hint">${copy.fileInputHint()}</p>
           </label>
 
+          <div class="notice">
+            <strong data-github-upload-selection>${copy.selectionEmpty()}</strong>
+            <p class="hint">${copy.selectionWarning()}</p>
+          </div>
+
           <section class="multi-chapter-progress" data-github-upload-progress hidden>
             <div class="multi-chapter-progress-head">
               <div class="multi-chapter-spinner" aria-hidden="true"></div>
@@ -399,6 +446,7 @@ export function showGithubImageUploadModal({ onSave }) {
     updateDestinationPreview(form);
   });
   form.imagesRoot?.addEventListener("input", () => updateDestinationPreview(form));
+  form.images?.addEventListener("change", () => updateSelectionPreview(form));
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -406,6 +454,7 @@ export function showGithubImageUploadModal({ onSave }) {
   });
 
   updateDestinationPreview(form);
+  updateSelectionPreview(form);
   form.number?.focus();
 }
 
