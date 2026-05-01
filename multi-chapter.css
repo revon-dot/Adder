@@ -1,5 +1,38 @@
+.multi-chapter-drawer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.multi-chapter-drawer .drawer-header {
+  flex: 0 0 auto;
+}
+
 .multi-chapter-drawer .drawer-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.multi-chapter-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
   gap: 16px;
+  padding-bottom: 18px;
+}
+
+.multi-chapter-actions {
+  flex: 0 0 auto;
+  position: static;
+  margin: 0 -20px -20px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-soft);
+  background: #11141b;
+  box-shadow: 0 -14px 24px rgba(0, 0, 0, 0.18);
 }
 
 .multi-chapter-options {
@@ -130,5 +163,13 @@
 @media (max-width: 700px) {
   .multi-chapter-progress-head {
     align-items: flex-start;
+  }
+
+  .multi-chapter-actions {
+    justify-content: stretch;
+  }
+
+  .multi-chapter-actions .btn {
+    flex: 1 1 auto;
   }
 }
