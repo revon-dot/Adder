@@ -2,7 +2,6 @@ import { escapeHtml, attr } from "../utils.js";
 import { repoLabel, cubariUrlForPath } from "../repo.js";
 import { renderChapterCards } from "./editor-renderers.js";
 import { renderLanguageToggle, t } from "../i18n.js";
-import { imgChestBatchUploadButtonLabel } from "./imgchest-batch-upload-modal.js";
 
 function backIcon() {
   return `
@@ -104,7 +103,7 @@ export function renderEditorPage(current, manifest) {
       
       <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
-        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${imgChestBatchUploadButtonLabel()}</button>
+        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Upload lote ImgChest", "ImgChest batch upload")}</button>
       </div>
       
       <section class="panel" id="chapters-list">
