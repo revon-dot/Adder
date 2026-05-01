@@ -2,6 +2,7 @@ import { escapeHtml, attr } from "../utils.js";
 import { repoLabel, cubariUrlForPath } from "../repo.js";
 import { renderChapterCards } from "./editor-renderers.js";
 import { renderLanguageToggle, t } from "../i18n.js";
+import { imgChestBatchUploadButtonLabel } from "./imgchest-batch-upload-modal.js";
 
 function backIcon() {
   return `
@@ -13,6 +14,16 @@ function backIcon() {
 
 function label(pt, en) {
   return document.documentElement.lang === "en" ? en : pt;
+}
+
+function supportsFolderPicker() {
+  const input = document.createElement("input");
+  return "webkitdirectory" in input;
+}
+
+function folderUploadButtonAttrs() {
+  if (supportsFolderPicker()) return "";
+  return `disabled aria-disabled="true" title="${attr(label("Seu navegador não suporta seleção de pastas. Use Chrome/Edge.", "Your browser does not support folder selection. Use Chrome/Edge."))}"`;
 }
 
 function renderSavedLinks(current) {
@@ -93,6 +104,7 @@ export function renderEditorPage(current, manifest) {
       
       <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
+        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${imgChestBatchUploadButtonLabel()}</button>
       </div>
       
       <section class="panel" id="chapters-list">
