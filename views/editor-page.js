@@ -103,7 +103,8 @@ export function renderEditorPage(current, manifest) {
       
       <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
-        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Upload lote ImgChest", "ImgChest batch upload")}</button>
+        <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Upload lote por pasta", "Batch upload by folder")}</button>
+        <button class="btn ghost" id="multi-chapter-import-btn">${label("Importar lote por URLs", "Batch import by URLs")}</button>
       </div>
       
       <section class="panel" id="chapters-list">
