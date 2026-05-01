@@ -141,7 +141,7 @@ function renderChapterTable(entries) {
               <input
                 type="checkbox"
                 data-select-visible-chapters
-                aria-label="Selecionar capítulos visíveis"
+                aria-label="${attr(t("selectVisibleChapters"))}"
                 ${allVisibleChecked ? "checked" : ""}
                 ${partiallyChecked ? "data-indeterminate=\"true\"" : ""}
               />
@@ -171,7 +171,7 @@ export function renderChapterRow(number, chapter = {}) {
         <input
           type="checkbox"
           data-select-chapter="${escapeHtml(number)}"
-          aria-label="Selecionar capítulo ${escapeHtml(number)}"
+          aria-label="${attr(t("selectChapter", { number }))}"
           ${isSelected ? "checked" : ""}
         />
       </td>
