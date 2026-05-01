@@ -131,6 +131,99 @@
   transition: width 0.18s ease;
 }
 
+.upload-console-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.upload-console-head strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.upload-console-head p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.upload-console-head [data-imgchest-console-stats] {
+  flex: 0 0 auto;
+  max-width: 46%;
+  padding: 6px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.upload-console {
+  display: grid;
+  gap: 4px;
+  min-height: 170px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(122, 168, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.2)),
+    #070a10;
+  color: #cbd5e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.upload-console:empty::before {
+  content: "Aguardando início do upload...";
+  color: rgba(203, 213, 225, 0.55);
+}
+
+.upload-console-line {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  word-break: break-word;
+}
+
+.upload-console-line .time {
+  color: rgba(203, 213, 225, 0.55);
+}
+
+.upload-console-line .level {
+  min-width: 7ch;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.upload-console-line.info .level {
+  color: #93c5fd;
+}
+
+.upload-console-line.success .level {
+  color: #86efac;
+}
+
+.upload-console-line.warn .level,
+.upload-console-line.warning .level,
+.upload-console-line.skip .level {
+  color: #fde68a;
+}
+
+.upload-console-line.error .level,
+.upload-console-line.fail .level {
+  color: #fca5a5;
+}
+
 .multi-chapter-summary {
   display: grid;
   gap: 8px;
@@ -161,8 +254,24 @@
 }
 
 @media (max-width: 700px) {
-  .multi-chapter-progress-head {
+  .multi-chapter-progress-head,
+  .upload-console-head {
     align-items: flex-start;
+  }
+
+  .upload-console-head {
+    display: grid;
+  }
+
+  .upload-console-head [data-imgchest-console-stats] {
+    max-width: none;
+    text-align: left;
+  }
+
+  .upload-console-line {
+    grid-template-columns: 1fr;
+    gap: 1px;
+    padding-bottom: 6px;
   }
 
   .multi-chapter-actions {
