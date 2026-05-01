@@ -49,6 +49,8 @@ const copy = {
   checkingChapter: (current, total, number) => label(`Verificando arquivos do capítulo ${number} (${current}/${total})`, `Checking chapter ${number} files (${current}/${total})`),
   uploadingChapter: (current, total, number) => label(`Enviando capítulo ${number} (${current}/${total})`, `Uploading chapter ${number} (${current}/${total})`),
   existingFiles: (count, number) => label(`Capítulo ${number}: ${count} arquivo(s) existente(s) serão sobrescritos.`, `Chapter ${number}: ${count} existing file(s) will be overwritten.`),
+  confirmOverwriteFiles: (count, number) => label(`Capítulo ${number}: ${count} arquivo(s) já existem no GitHub e serão sobrescritos. Continuar?`, `Chapter ${number}: ${count} file(s) already exist on GitHub and will be overwritten. Continue?`),
+  overwriteCancelled: (number) => label(`Capítulo ${number}: sobrescrita cancelada pelo usuário.`, `Chapter ${number}: overwrite cancelled by the user.`),
   uploadedChapter: (number, count) => label(`Capítulo ${number}: ${count} imagens enviadas.`, `Chapter ${number}: ${count} images uploaded.`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
@@ -241,7 +243,14 @@ async function uploadChapter({ modal, client, chapterGroup, settings, index, tot
   }
 
   const existingFileCount = items.filter((item) => item.sha).length;
-  if (existingFileCount) addSummaryLine(modal, "skip", copy.existingFiles(existingFileCount, chapterGroup.number));
+  if (existingFileCount) {
+    addSummaryLine(modal, "skip", copy.existingFiles(existingFileCount, chapterGroup.number));
+    const ok = confirm(copy.confirmOverwriteFiles(existingFileCount, chapterGroup.number));
+    if (!ok) {
+      addSummaryLine(modal, "skip", copy.overwriteCancelled(chapterGroup.number));
+      return null;
+    }
+  }
 
   setProgress(modal, {
     done: index * 3 + 2,
@@ -333,7 +342,7 @@ async function runUpload({ modal, form, onSave }) {
       const chapterGroup = chaptersToUpload[index];
       try {
         const result = await uploadChapter({ modal, client, chapterGroup, settings, index, total: chaptersToUpload.length });
-        imported.push(result);
+        if (result) imported.push(result);
       } catch (error) {
         failed.push({ number: chapterGroup.number, error });
         addSummaryLine(modal, "fail", copy.failedChapter(chapterGroup.number, error.message || String(error)));
