@@ -15,6 +15,7 @@ import { showGithubFolderUploadModal } from "./github-folder-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
+import { githubImageDefaults, mangaFolderFromJsonName } from "../github-image-links.js";
 
 function editorSnapshot(fileName, manifest) {
   return JSON.stringify({
@@ -27,6 +28,12 @@ function unsavedUploadJsonWarning() {
   return document.documentElement.lang === "en"
     ? "Images were uploaded, but the JSON is NOT saved yet. Click Save to GitHub."
     : "Imagens enviadas, mas o JSON ainda NÃO foi salvo. Clique em Salvar no GitHub.";
+}
+
+function deleteWorkAssetsWarning() {
+  return document.documentElement.lang === "en"
+    ? "\n\nThe image folder for this work will also be deleted from the repository."
+    : "\n\nA pasta de imagens desta obra também será deletada do repositório.";
 }
 
 function syncAutoFileName() {
@@ -162,14 +169,136 @@ function addGithubFolderChaptersWithDrawer(navigateToDashboard) {
   });
 }
 
+function safeDecodePathSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function extractRepositoryPathFromImageUrl(url) {
+  const config = state.config || {};
+  let parsed;
+
+  try {
+    parsed = new URL(String(url || ""));
+  } catch {
+    return "";
+  }
+
+  const pathParts = parsed.pathname
+    .split("/")
+    .filter(Boolean)
+    .map(safeDecodePathSegment);
+
+  const owner = String(config.owner || "");
+  const repo = String(config.repo || "");
+  const branchParts = String(config.branch || "main").split("/").filter(Boolean);
+
+  if (parsed.hostname === "raw.githubusercontent.com") {
+    const matchesRepo = pathParts[0] === owner && pathParts[1] === repo;
+    const matchesBranch = branchParts.every((part, index) => pathParts[index + 2] === part);
+    if (!matchesRepo || !matchesBranch) return "";
+    return pathParts.slice(2 + branchParts.length).join("/");
+  }
+
+  if (parsed.hostname === `${owner}.github.io`) {
+    if (pathParts[0] !== repo) return "";
+    return pathParts.slice(1).join("/");
+  }
+
+  return "";
+}
+
+function collectImageFoldersFromManifest() {
+  const mangaFolder = mangaFolderFromJsonName(state.current?.name || "");
+  if (!mangaFolder) return [];
+
+  const folders = new Set([
+    githubPath.joinPath(githubImageDefaults.imagesRoot, mangaFolder),
+  ]);
+
+  const addFolderFromRepositoryPath = (path) => {
+    const parts = String(path || "").split("/").filter(Boolean);
+    const mangaFolderIndex = parts.indexOf(mangaFolder);
+    if (mangaFolderIndex <= 0) return;
+    folders.add(parts.slice(0, mangaFolderIndex + 1).join("/"));
+  };
+
+  Object.values(state.current?.data?.chapters || {}).forEach((chapter) => {
+    Object.values(chapter?.groups || {}).forEach((urls) => {
+      if (!Array.isArray(urls)) return;
+      urls.forEach((url) => {
+        const path = extractRepositoryPathFromImageUrl(url);
+        addFolderFromRepositoryPath(path);
+      });
+    });
+  });
+
+  return [...folders].filter(Boolean);
+}
+
+async function listRepositoryFilesRecursive(client, path) {
+  let contents;
+
+  try {
+    contents = await client.listContents({
+      ...state.config,
+      path,
+    });
+  } catch (error) {
+    if (error.status === 404) return [];
+    throw error;
+  }
+
+  const items = Array.isArray(contents) ? contents : [contents];
+  const files = [];
+
+  for (const item of items) {
+    if (item.type === "file") {
+      files.push(item);
+      continue;
+    }
+
+    if (item.type === "dir") {
+      const nestedFiles = await listRepositoryFilesRecursive(client, item.path);
+      files.push(...nestedFiles);
+    }
+  }
+
+  return files;
+}
+
+async function deleteRepositoryFolderFiles(client, folderPath, workName) {
+  const files = await listRepositoryFilesRecursive(client, folderPath);
+
+  for (const file of files) {
+    await client.deleteFile({
+      ...state.config,
+      path: file.path,
+      sha: file.sha,
+      message: `Delete assets for ${workName}: ${file.path}`,
+    });
+  }
+
+  return files.length;
+}
+
 async function deleteCurrentWork(navigateToDashboard) {
   if (!state.current || state.current.isNew || !state.current.path || !state.current.sha) return;
-  const ok = confirm(t("deleteWorkConfirm", { name: state.current.name || state.current.path }));
+  const ok = confirm(`${t("deleteWorkConfirm", { name: state.current.name || state.current.path })}${deleteWorkAssetsWarning()}`);
   if (!ok) return;
 
   try {
     setBusy(true);
     const client = ensureClient();
+    const imageFolders = collectImageFoldersFromManifest();
+
+    for (const folderPath of imageFolders) {
+      await deleteRepositoryFolderFiles(client, folderPath, state.current.name || state.current.path);
+    }
+
     await client.deleteFile({
       ...state.config,
       path: state.current.path,
