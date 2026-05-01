@@ -99,6 +99,11 @@ function chapterEventOptions(navigateToDashboard) {
   };
 }
 
+function saveEditorFromButton(navigateToDashboard) {
+  syncAutoFileName();
+  saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
+}
+
 function upsertUploadedChapter({ number, chapter, conflictMode }) {
   if (!state.current.data.chapters) state.current.data.chapters = {};
   const existingChapter = state.current.data.chapters[number];
@@ -399,6 +404,10 @@ async function syncMissingRepositoryChapters(navigateToDashboard, syncId) {
       }
     });
     state.current.data.chapters = sortChaptersByNumber(state.current.data.chapters);
+    state.current.repositorySync = {
+      missingChaptersAdded: added.length,
+      chapters: added.map(({ number }) => number),
+    };
 
     renderEditor(navigateToDashboard);
     toast(syncedMissingChaptersWarning(added.length), "warning");
@@ -512,10 +521,8 @@ function bindEditorEvents(navigateToDashboard) {
   bindCopyButton("#copy-editor-cubari-btn", "cubariUrl");
   document.querySelector("#delete-work-btn")?.addEventListener("click", () => deleteCurrentWork(navigateToDashboard));
 
-  document.querySelector("#save-btn")?.addEventListener("click", () => {
-    syncAutoFileName();
-    saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
-  });
+  document.querySelector("#save-btn")?.addEventListener("click", () => saveEditorFromButton(navigateToDashboard));
+  document.querySelector("#repository-sync-save-btn")?.addEventListener("click", () => saveEditorFromButton(navigateToDashboard));
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
   document.querySelector("#github-image-upload-btn")?.addEventListener("click", () => addGithubImageChapterWithDrawer(navigateToDashboard));
   document.querySelector("#github-folder-upload-btn")?.addEventListener("click", () => addGithubFolderChaptersWithDrawer(navigateToDashboard));
