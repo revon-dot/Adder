@@ -8,6 +8,9 @@ import { buildGithubImageUploadItems, buildGithubImageFolder, githubImageDefault
 import { extractChapterNumberFromTitle, normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
 
 const BATCH_PREFERENCES_KEY = "adder-pages:github-folder-upload-preferences";
+const LARGE_BATCH_CHAPTERS = 10;
+const LARGE_BATCH_IMAGES = 300;
+const LARGE_BATCH_BYTES = 500 * 1024 * 1024;
 
 function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
@@ -42,6 +45,8 @@ const copy = {
   selectionSummary: (chapters, images, size) => label(`${chapters} capítulos detectados · ${images} imagens · ${size}`, `${chapters} chapters detected · ${images} images · ${size}`),
   detectedPreview: (items, remaining) => label(`Detectado: ${items}${remaining > 0 ? ` +${remaining} capítulo(s)` : ""}`, `Detected: ${items}${remaining > 0 ? ` +${remaining} chapter(s)` : ""}`),
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
+  largeBatchWarning: () => label("Lote grande. O upload pode demorar, gerar muitos commits e deixar o repositório pesado.", "Large batch. Upload may take a while, create many commits, and make the repository heavy."),
+  confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size} antes da compressão. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size} before compression. Continue?`),
   chapterExists: (number) => label(`Capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
   confirmReplace: (count) => label(`${count} capítulo(s) existente(s) serão substituídos/mesclados no JSON. Continuar?`, `${count} existing chapter(s) will be replaced/merged in the JSON. Continue?`),
   preparing: () => label("Preparando lote...", "Preparing batch..."),
@@ -135,6 +140,10 @@ function selectedStats(form) {
   return { files, chapters, skipped, imageCount, size };
 }
 
+function isLargeBatch(stats) {
+  return stats.chapters.length > LARGE_BATCH_CHAPTERS || stats.imageCount > LARGE_BATCH_IMAGES || stats.size > LARGE_BATCH_BYTES;
+}
+
 function updateSelectionPreview(form) {
   const preview = form.querySelector("[data-folder-upload-selection]");
   if (!preview) return;
@@ -142,13 +151,16 @@ function updateSelectionPreview(form) {
   const stats = selectedStats(form);
   if (!stats.chapters.length) {
     preview.textContent = copy.selectionEmpty();
+    preview.classList.remove("warning");
     return;
   }
 
   const first = stats.chapters.slice(0, 6).map((chapter) => `${chapter.number} (${chapter.files.length})`).join(" → ");
   const remaining = Math.max(0, stats.chapters.length - 6);
   const skipped = stats.skipped.map((folder) => copy.skipNoNumber(folder)).join("\n");
-  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}`;
+  const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
+  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${warning}`;
+  preview.classList.toggle("warning", isLargeBatch(stats));
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -299,6 +311,11 @@ async function runUpload({ modal, form, onSave }) {
   if (!stats.chapters.length) {
     toast(copy.noChapters(), "error");
     return;
+  }
+
+  if (isLargeBatch(stats)) {
+    const ok = confirm(copy.confirmLargeBatch(stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
+    if (!ok) return;
   }
 
   const existing = state.current?.data?.chapters || {};
