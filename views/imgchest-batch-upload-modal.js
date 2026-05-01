@@ -187,30 +187,6 @@ function chapterTitleFromTemplate(template, number) {
   return template ? template.replaceAll("{n}", number).replaceAll("{chapter}", number) : "";
 }
 
-function resolveChaptersToUpload(stats, settings) {
-  const existing = state.current?.data?.chapters || {};
-  const existingChapters = stats.chapters.filter((chapter) => Object.prototype.hasOwnProperty.call(existing, chapter.number));
-
-  if (existingChapters.length && settings.conflictMode === "cancel") {
-    throw new Error(copy.chapterExists(existingChapters.map((chapter) => chapter.number).join(", ")));
-  }
-
-  if (existingChapters.length && ["replace", "merge"].includes(settings.conflictMode)) {
-    const ok = confirm(copy.confirmReplace(existingChapters.length));
-    if (!ok) return null;
-  }
-
-  if (settings.conflictMode === "skip") {
-    return stats.chapters.filter((chapter) => {
-      const exists = Object.prototype.hasOwnProperty.call(existing, chapter.number);
-      if (exists) addSummaryLine(document, "skip", "");
-      return !exists;
-    });
-  }
-
-  return stats.chapters;
-}
-
 function saveTokenPreference(settings) {
   try {
     if (settings.rememberToken) {
