@@ -45,6 +45,7 @@ const copy = {
   overwrittenLine: (name, size) => label(`${name} sobrescrito (${size}).`, `${name} overwritten (${size}).`),
   done: (count) => label(`${count} imagens enviadas. Clique em Salvar no GitHub para gravar o JSON.`, `${count} images uploaded. Click Save to GitHub to write the JSON.`),
   destination: () => label("Destino", "Destination"),
+  destinationHint: () => label("As imagens serão salvas nessa pasta do repositório. Depois do upload, o capítulo será atualizado na tela; para gravar o JSON, clique em Salvar no GitHub.", "Images will be saved to this repository folder. After upload, the chapter is updated on screen; to write the JSON, click Save to GitHub."),
   summary: () => label("Resumo", "Summary"),
   originalSize: () => label("Tamanho original", "Original size"),
   finalSize: () => label("Tamanho final", "Final size"),
@@ -61,6 +62,26 @@ function getHighestNumericChapter(chapters = {}) {
 function getNextChapterNumber() {
   const highest = getHighestNumericChapter(state.current?.data?.chapters || {});
   return normalizeChapterNumber(String(Math.floor(highest) + 1));
+}
+
+function getJsonFileName() {
+  return state.current?.name || "manga.json";
+}
+
+function previewFolderFromForm(form) {
+  const number = normalizeChapterNumber(form.number?.value || "");
+  const imagesRoot = String(form.imagesRoot?.value || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot;
+  return buildGithubImageFolder({
+    imagesRoot,
+    jsonFileName: getJsonFileName(),
+    chapterNumber: number || getNextChapterNumber(),
+  });
+}
+
+function updateDestinationPreview(form) {
+  const preview = form.querySelector("[data-github-upload-destination]");
+  if (!preview) return;
+  preview.textContent = previewFolderFromForm(form);
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -177,7 +198,7 @@ async function runUpload({ modal, form, onSave }) {
       },
     });
 
-    const jsonFileName = state.current?.name || "manga.json";
+    const jsonFileName = getJsonFileName();
     const folder = buildGithubImageFolder({
       imagesRoot: settings.imagesRoot,
       jsonFileName,
@@ -256,11 +277,17 @@ async function runUpload({ modal, form, onSave }) {
   } finally {
     setBusy(false);
     disableForm(form, false);
+    updateDestinationPreview(form);
   }
 }
 
 export function showGithubImageUploadModal({ onSave }) {
   const nextNumber = getNextChapterNumber();
+  const initialDestination = buildGithubImageFolder({
+    imagesRoot: githubImageDefaults.imagesRoot,
+    jsonFileName: getJsonFileName(),
+    chapterNumber: nextNumber,
+  });
   const modal = document.createElement("div");
   modal.className = "drawer-backdrop";
   modal.innerHTML = `
@@ -292,6 +319,12 @@ export function showGithubImageUploadModal({ onSave }) {
               <span>${copy.imagesRoot()}</span>
               <input name="imagesRoot" value="${attr(githubImageDefaults.imagesRoot)}" />
             </label>
+          </div>
+
+          <div class="notice">
+            <strong>${copy.destination()}</strong>
+            <code data-github-upload-destination>${attr(initialDestination)}</code>
+            <p class="hint">${copy.destinationHint()}</p>
           </div>
 
           <label class="field">
@@ -360,15 +393,19 @@ export function showGithubImageUploadModal({ onSave }) {
   const close = () => modal.remove();
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
+  form.number?.addEventListener("input", () => updateDestinationPreview(form));
   form.number?.addEventListener("blur", () => {
     form.number.value = normalizeChapterNumber(form.number.value);
+    updateDestinationPreview(form);
   });
+  form.imagesRoot?.addEventListener("input", () => updateDestinationPreview(form));
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     await runUpload({ modal, form, onSave });
   });
 
+  updateDestinationPreview(form);
   form.number?.focus();
 }
 
