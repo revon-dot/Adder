@@ -4,6 +4,10 @@ import { sortChapterEntries } from "../cubari.js";
 import { showChapterEditModal } from "./chapter-modal.js";
 import { t } from "../i18n.js";
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 function rerender(renderEditor, navigateToDashboard, updateEditorStats) {
   if (renderEditor && navigateToDashboard) renderEditor(navigateToDashboard);
   else updateEditorStats();
@@ -56,8 +60,12 @@ function bulkDeleteConfirm(numbers) {
   const preview = numbers.slice(0, 12).join(", ");
   const rest = numbers.length > 12 ? `, +${numbers.length - 12}` : "";
   return confirm(
-    `Excluir ${numbers.length} capítulo(s)?\n\n${preview}${rest}\n\n` +
-      "A remoção será aplicada ao JSON aberto. Depois clique em Salvar no GitHub para gravar a alteração."
+    label(`Excluir ${numbers.length} capítulo(s)?`, `Delete ${numbers.length} chapter(s)?`) +
+      `\n\n${preview}${rest}\n\n` +
+      label(
+        "A remoção será aplicada ao JSON aberto. Depois clique em Salvar no GitHub para gravar a alteração.",
+        "The removal will be applied to the open JSON. Then click Save to GitHub to write the change.",
+      )
   );
 }
 
@@ -69,7 +77,7 @@ function removeChapterFromJson(number, { renderEditor, navigateToDashboard, upda
   state.editor.selectedChapters = (state.editor.selectedChapters || []).filter((selected) => selected !== number);
   if (state.editor.lastSelectedChapter === number) state.editor.lastSelectedChapter = null;
 
-  toast(`Capítulo ${number} removido do JSON. Clique em Salvar no GitHub para gravar.`, "success");
+  toast(label(`Capítulo ${number} removido do JSON. Clique em Salvar no GitHub para gravar.`, `Chapter ${number} removed from the JSON. Click Save to GitHub to write it.`), "success");
   rerender(renderEditor, navigateToDashboard, updateEditorStats);
 }
 
@@ -82,7 +90,7 @@ function removeSelectedChaptersFromJson(numbers, { renderEditor, navigateToDashb
 
   state.editor.selectedChapters = [];
   state.editor.lastSelectedChapter = null;
-  toast(`${numbers.length} capítulo(s) removido(s) do JSON. Clique em Salvar no GitHub para gravar.`, "success");
+  toast(label(`${numbers.length} capítulo(s) removido(s) do JSON. Clique em Salvar no GitHub para gravar.`, `${numbers.length} chapter(s) removed from the JSON. Click Save to GitHub to write it.`), "success");
   rerender(renderEditor, navigateToDashboard, updateEditorStats);
 }
 
@@ -224,7 +232,10 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
       if (!number) return;
       const ok = confirm(
         `${t("removeChapterConfirm", { number })}\n\n` +
-          "A remoção será aplicada ao JSON aberto. Depois clique em Salvar no GitHub para gravar a alteração."
+          label(
+            "A remoção será aplicada ao JSON aberto. Depois clique em Salvar no GitHub para gravar a alteração.",
+            "The removal will be applied to the open JSON. Then click Save to GitHub to write the change.",
+          )
       );
       if (!ok) return;
       removeChapterFromJson(number, { renderEditor, navigateToDashboard, updateEditorStats });
