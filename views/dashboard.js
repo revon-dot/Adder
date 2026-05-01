@@ -23,11 +23,16 @@ function isDashboardLoadCurrent(loadId) {
   return loadId === dashboardLoadId;
 }
 
+function hasDashboardLoadingSurface(loadId) {
+  return Boolean(document.querySelector(`[data-dashboard-load-id="${loadId}"]`));
+}
+
+function hasDashboardContentSurface() {
+  return Boolean(document.querySelector(".dashboard-panel"));
+}
+
 function isDashboardSurfaceVisible(loadId) {
-  return Boolean(
-    document.querySelector(`[data-dashboard-load-id="${loadId}"]`) ||
-    document.querySelector(".dashboard-header"),
-  );
+  return hasDashboardLoadingSurface(loadId) || hasDashboardContentSurface();
 }
 
 function canUpdateDashboard(loadId) {
@@ -81,8 +86,8 @@ async function collectRepositoryStorage(client, path) {
 
 function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect, loadId = dashboardLoadId) {
   try {
-    if (!canUpdateDashboard(loadId)) return;
-    if (!document.querySelector(".dashboard-header")) return;
+    if (!isDashboardLoadCurrent(loadId)) return;
+    if (!hasDashboardContentSurface()) return;
     renderDashboardCallback(navigateToEditor, navigateToConnect);
   } catch {
     // Storage numbers are informational. Never let them break the dashboard.
