@@ -11,6 +11,7 @@ import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
 import { showMultiChapterUploadModal } from "./multi-chapter-modal.js";
 import { showGithubImageUploadModal } from "./github-image-upload-modal.js";
+import { showGithubFolderUploadModal } from "./github-folder-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
@@ -75,6 +76,27 @@ function chapterEventOptions(navigateToDashboard) {
   };
 }
 
+function upsertUploadedChapter({ number, chapter, conflictMode }) {
+  if (!state.current.data.chapters) state.current.data.chapters = {};
+  const existingChapter = state.current.data.chapters[number];
+
+  if (existingChapter && conflictMode === "merge") {
+    state.current.data.chapters[number] = {
+      ...existingChapter,
+      title: chapter.title || existingChapter.title || "",
+      volume: chapter.volume || existingChapter.volume || "",
+      last_updated: chapter.last_updated,
+      groups: {
+        ...(existingChapter.groups || {}),
+        ...(chapter.groups || {}),
+      },
+    };
+    return;
+  }
+
+  state.current.data.chapters[number] = chapter;
+}
+
 function addChapterWithDrawer(navigateToDashboard) {
   syncCurrentFromForm();
   showChapterEditModal({
@@ -113,24 +135,20 @@ function addGithubImageChapterWithDrawer(navigateToDashboard) {
   showGithubImageUploadModal({
     onSave: ({ number, chapter, conflictMode }) => {
       syncCurrentFromForm();
-      if (!state.current.data.chapters) state.current.data.chapters = {};
+      upsertUploadedChapter({ number, chapter, conflictMode });
+      renderEditor(navigateToDashboard);
+    },
+  });
+}
 
-      const existingChapter = state.current.data.chapters[number];
-      if (existingChapter && conflictMode === "merge") {
-        state.current.data.chapters[number] = {
-          ...existingChapter,
-          title: chapter.title || existingChapter.title || "",
-          volume: chapter.volume || existingChapter.volume || "",
-          last_updated: chapter.last_updated,
-          groups: {
-            ...(existingChapter.groups || {}),
-            ...(chapter.groups || {}),
-          },
-        };
-      } else {
-        state.current.data.chapters[number] = chapter;
-      }
-
+function addGithubFolderChaptersWithDrawer(navigateToDashboard) {
+  syncCurrentFromForm();
+  showGithubFolderUploadModal({
+    onSave: ({ imported, conflictMode }) => {
+      syncCurrentFromForm();
+      imported.forEach(({ number, chapter }) => {
+        upsertUploadedChapter({ number, chapter, conflictMode });
+      });
       renderEditor(navigateToDashboard);
     },
   });
@@ -221,6 +239,7 @@ function bindEditorEvents(navigateToDashboard) {
   });
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
   document.querySelector("#github-image-upload-btn")?.addEventListener("click", () => addGithubImageChapterWithDrawer(navigateToDashboard));
+  document.querySelector("#github-folder-upload-btn")?.addEventListener("click", () => addGithubFolderChaptersWithDrawer(navigateToDashboard));
   document.querySelector("#multi-chapter-upload-btn")?.addEventListener("click", () => addMultipleChaptersWithDrawer(navigateToDashboard));
 
   const titleInput = document.querySelector("input[name='title']");
