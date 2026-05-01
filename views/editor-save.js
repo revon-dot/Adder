@@ -6,6 +6,10 @@ import { collectManifestFromEditor } from "../editor-collector.js";
 import { ensureClient } from "../repo.js";
 import { showValidationModal } from "../modals.js";
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 function upsertSavedFileRecord({ oldPath, desiredPath, record, isRenamingExisting }) {
   const oldIndex = state.files.findIndex((file) => file.path === oldPath);
   const targetIndex = state.files.findIndex((file) => file.path === desiredPath);
@@ -33,7 +37,9 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeS
   }
 
   if (validation.warnings.length) {
-    const ok = confirm(`Avisos encontrados:\n\n${validation.warnings.slice(0, 6).join("\n")}\n\nSalvar mesmo assim?`);
+    const ok = confirm(
+      `${label("Avisos encontrados:", "Warnings found:")}\n\n${validation.warnings.slice(0, 6).join("\n")}\n\n${label("Salvar mesmo assim?", "Save anyway?")}`,
+    );
     if (!ok) return;
   }
 
@@ -46,12 +52,18 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeS
   const isOverwritingDifferentFile = Boolean(existingTarget && existingTarget.path !== oldPath);
 
   if (isRenamingExisting) {
-    const ok = confirm("Você mudou o nome do arquivo. O Adder Pages vai criar ou atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?");
+    const ok = confirm(label(
+      "Você mudou o nome do arquivo. O Adder Pages vai criar ou atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?",
+      "You changed the file name. Adder Pages will create or update the new file, but it will not automatically delete the old one. Continue?",
+    ));
     if (!ok) return;
   }
 
   if (isOverwritingDifferentFile) {
-    const ok = confirm(`Já existe um arquivo chamado ${fileName}. Salvar vai substituir esse JSON. Continuar?`);
+    const ok = confirm(label(
+      `Já existe um arquivo chamado ${fileName}. Salvar vai substituir esse JSON. Continuar?`,
+      `A file named ${fileName} already exists. Saving will replace that JSON. Continue?`,
+    ));
     if (!ok) return;
   }
 
@@ -96,7 +108,7 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeS
       isRenamingExisting,
     });
 
-    toast("JSON salvo no GitHub.", "success");
+    toast(label("JSON salvo no GitHub.", "JSON saved to GitHub."), "success");
     renderEditor(navigateToDashboard);
   } catch (error) {
     toast(errorMessage(error), "error");
