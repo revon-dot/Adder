@@ -106,6 +106,21 @@ function saveEditorFromButton(navigateToDashboard) {
   return saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
 }
 
+function saveEditorQuietly(navigateToDashboard, commitMessage = null) {
+  syncAutoFileName();
+  return saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot, {
+    renderAfterSave: false,
+    confirmWarnings: false,
+    confirmRename: false,
+    confirmOverwrite: false,
+    showValidation: false,
+    toastSuccess: false,
+    toastErrors: true,
+    busy: false,
+    commitMessage,
+  });
+}
+
 function upsertUploadedChapter({ number, chapter, conflictMode }) {
   if (!state.current.data.chapters) state.current.data.chapters = {};
   const existingChapter = state.current.data.chapters[number];
@@ -167,11 +182,13 @@ async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
     const { showImgChestBatchUploadModal } = await import("./imgchest-batch-upload-modal.js");
     showImgChestBatchUploadModal({
       onChapterUploaded: ({ number, chapter, conflictMode }) => {
-        // Keep the result drawer/console open while still making the editor
-        // state the source of truth chapter by chapter.
         upsertUploadedChapter({ number, chapter, conflictMode });
         updateBeforeUnloadGuard();
       },
+      onAutosaveChapter: ({ number }) => saveEditorQuietly(
+        navigateToDashboard,
+        `Update ${state.current?.name || "manga.json"} after ImgChest chapter ${number} upload`,
+      ),
       onSave: ({ imported, conflictMode, alreadyApplied }) => {
         if (!alreadyApplied) {
           syncCurrentFromForm();
@@ -180,12 +197,10 @@ async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
           });
         }
         updateBeforeUnloadGuard();
-        toast(unsavedUploadJsonWarning(), "warning");
       },
       onSaveToGithub: () => saveEditorFromButton(navigateToDashboard),
       onReviewFiles: () => {
         renderEditor(navigateToDashboard);
-        toast(unsavedUploadJsonWarning(), "warning");
       },
     });
   } catch (error) {
