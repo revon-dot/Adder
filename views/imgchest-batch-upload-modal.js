@@ -10,6 +10,7 @@ const PREFERENCES_KEY = "adder-pages:imgchest-batch-upload-preferences";
 const LARGE_BATCH_CHAPTERS = 10;
 const LARGE_BATCH_IMAGES = 500;
 const LARGE_BATCH_BYTES = 700 * 1024 * 1024;
+const AUTO_POST_TITLE_TEMPLATE = "{album} {chapter}";
 
 function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
@@ -28,16 +29,9 @@ const copy = {
     `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Se um capítulo falhar, o Adder cancela tudo, tenta apagar os posts criados e não altera o JSON.`,
     `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. If a chapter fails, Adder cancels everything, tries to delete created posts, and does not change the JSON.`,
   ),
-  privacy: () => label("Privacidade", "Privacy"),
-  hidden: () => label("hidden", "hidden"),
-  public: () => label("public", "public"),
-  secret: () => label("secret", "secret"),
   group: () => label("Grupo", "Group"),
-  titleTemplate: () => label("Título do post ImgChest", "ImgChest post title"),
-  titleTemplatePlaceholder: () => "{album} {chapter}",
-  titleTemplateHint: () => label("Variáveis: {album}, {folder}, {chapter}.", "Variables: {album}, {folder}, {chapter}."),
-  chapterTitleTemplate: () => label("Título automático no JSON", "Automatic JSON title"),
-  chapterTitleTemplatePlaceholder: () => label("opcional, ex: Capítulo {chapter}", "optional, e.g. Chapter {chapter}"),
+  chapterTitleTemplate: () => label("Título automático", "Automatic title"),
+  chapterTitleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
   conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
   conflictCancel: () => label("Cancelar tudo", "Cancel all"),
   conflictSkip: () => label("Pular existentes", "Skip existing"),
@@ -80,7 +74,7 @@ const copy = {
   startUpload: () => label("Enviar lote para ImgChest", "Upload batch to ImgChest"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
-  preferencesHint: () => label("O Adder lembra privacidade, grupo, templates e modo de conflito neste navegador. Batch/delay/retry são fixos para proteger contra rate limit.", "Adder remembers privacy, group, templates, and conflict mode in this browser. Batch/delay/retry are fixed to protect against rate limits."),
+  preferencesHint: () => label("O Adder lembra grupo, título automático e modo de conflito neste navegador. Privacidade, título do post, batch, delay e retry são automáticos.", "Adder remembers group, automatic title, and conflict mode in this browser. Privacy, post title, batch, delay, and retry are automatic."),
 };
 
 function loadPreferences() {
@@ -94,10 +88,8 @@ function loadPreferences() {
 function savePreferences(form) {
   try {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify({
-      privacy: String(form.privacy?.value || imgChestUploadDefaults.privacy),
       conflictMode: String(form.conflictMode?.value || "skip"),
       groupName: String(form.groupName?.value || ""),
-      titleTemplate: String(form.titleTemplate?.value || "{album} {chapter}"),
       chapterTitleTemplate: String(form.chapterTitleTemplate?.value || ""),
     }));
   } catch {
@@ -205,9 +197,9 @@ function collectSettings(form) {
   return {
     token: String(formData.get("token") || "").trim(),
     rememberToken: Boolean(formData.get("rememberToken")),
-    privacy: String(formData.get("privacy") || imgChestUploadDefaults.privacy),
+    privacy: imgChestUploadDefaults.privacy,
     groupName: String(formData.get("groupName") || "").trim(),
-    titleTemplate: String(formData.get("titleTemplate") || "{album} {chapter}").trim() || "{album} {chapter}",
+    titleTemplate: AUTO_POST_TITLE_TEMPLATE,
     chapterTitleTemplate: String(formData.get("chapterTitleTemplate") || "").trim(),
     conflictMode: String(formData.get("conflictMode") || "skip"),
   };
@@ -321,11 +313,7 @@ async function runUpload({ modal, form, onSave }) {
     for (let index = 0; index < chaptersToUpload.length; index += 1) {
       const chapterGroup = chaptersToUpload[index];
       const currentText = copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number);
-      setProgress(modal, {
-        done: index,
-        total: chaptersToUpload.length,
-        text: currentText,
-      });
+      setProgress(modal, { done: index, total: chaptersToUpload.length, text: currentText });
       addConsoleLine(modal, "info", currentText);
 
       try {
@@ -340,11 +328,7 @@ async function runUpload({ modal, form, onSave }) {
               const message = copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries);
               addSummaryLine(modal, "skip", message);
               addConsoleLine(modal, "warn", message);
-              setProgress(modal, {
-                done: index,
-                total: chaptersToUpload.length,
-                text: message,
-              });
+              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
             },
           },
           onStatus: ({ phase, batchIndex, batchTotal }) => {
@@ -354,29 +338,17 @@ async function runUpload({ modal, form, onSave }) {
             if (phase === "add") {
               const message = copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal);
               addConsoleLine(modal, "info", message);
-              setProgress(modal, {
-                done: index,
-                total: chaptersToUpload.length,
-                text: message,
-              });
+              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
             }
             if (phase === "refresh") {
               const message = copy.refreshing(chapterGroup.number);
               addConsoleLine(modal, "info", message);
-              setProgress(modal, {
-                done: index,
-                total: chaptersToUpload.length,
-                text: message,
-              });
+              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
             }
             if (phase === "rollback") {
               const message = copy.rollingBack(chapterGroup.number);
               addConsoleLine(modal, "warn", message);
-              setProgress(modal, {
-                done: index,
-                total: chaptersToUpload.length,
-                text: message,
-              });
+              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
             }
           },
         });
@@ -406,11 +378,7 @@ async function runUpload({ modal, form, onSave }) {
         break;
       }
 
-      setProgress(modal, {
-        done: index + 1,
-        total: chaptersToUpload.length,
-        text: copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number),
-      });
+      setProgress(modal, { done: index + 1, total: chaptersToUpload.length, text: copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number) });
       updateConsoleStats(modal, {
         processed: index + 1,
         total: chaptersToUpload.length,
@@ -493,31 +461,16 @@ export function showImgChestBatchUploadModal({ onSave }) {
             <strong>${copy.safetyHint()}</strong>
           </div>
 
-          <div class="drawer-grid chapter-meta-grid">
-            <label class="field">
-              <span>${copy.privacy()}</span>
-              <select name="privacy">
-                <option value="hidden" ${(preferences.privacy || imgChestUploadDefaults.privacy) === "hidden" ? "selected" : ""}>${copy.hidden()}</option>
-                <option value="public" ${preferences.privacy === "public" ? "selected" : ""}>${copy.public()}</option>
-                <option value="secret" ${preferences.privacy === "secret" ? "selected" : ""}>${copy.secret()}</option>
-              </select>
-            </label>
+          <div class="drawer-grid">
             <label class="field">
               <span>${copy.group()}</span>
               <input name="groupName" value="${attr(preferences.groupName || "")}" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
             </label>
+            <label class="field">
+              <span>${copy.chapterTitleTemplate()}</span>
+              <input name="chapterTitleTemplate" value="${attr(preferences.chapterTitleTemplate || "")}" placeholder="${attr(copy.chapterTitleTemplatePlaceholder())}" />
+            </label>
           </div>
-
-          <label class="field">
-            <span>${copy.titleTemplate()}</span>
-            <input name="titleTemplate" value="${attr(preferences.titleTemplate || "{album} {chapter}")}" placeholder="${attr(copy.titleTemplatePlaceholder())}" />
-            <p class="hint">${copy.titleTemplateHint()}</p>
-          </label>
-
-          <label class="field">
-            <span>${copy.chapterTitleTemplate()}</span>
-            <input name="chapterTitleTemplate" value="${attr(preferences.chapterTitleTemplate || "")}" placeholder="${attr(copy.chapterTitleTemplatePlaceholder())}" />
-          </label>
 
           <label class="field">
             <span>${copy.conflictMode()}</span>
@@ -566,9 +519,7 @@ export function showImgChestBatchUploadModal({ onSave }) {
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
   form.folder?.addEventListener("change", () => updateSelectionPreview(form));
-  form.privacy?.addEventListener("change", remember);
   form.groupName?.addEventListener("input", remember);
-  form.titleTemplate?.addEventListener("input", remember);
   form.chapterTitleTemplate?.addEventListener("input", remember);
   form.conflictMode?.addEventListener("change", remember);
 
