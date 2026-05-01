@@ -61,6 +61,9 @@ const copy = {
   addingBatch: (number, batch, total) => label(`Capítulo ${number}: adicionando batch ${batch}/${total}`, `Chapter ${number}: adding batch ${batch}/${total}`),
   refreshing: (number) => label(`Capítulo ${number}: buscando links finais`, `Chapter ${number}: fetching final links`),
   rateLimit: (seconds, attempt, max) => label(`Limite da API atingido. Esperando ${seconds}s antes de tentar de novo (${attempt}/${max}).`, `API rate limit reached. Waiting ${seconds}s before retrying (${attempt}/${max}).`),
+  uploadIntro: (albumName, chapters, images, size) => label(`${albumName}: ${chapters} capítulo(s) detectado(s), ${images} imagem(ns), ${size}.`, `${albumName}: ${chapters} chapter(s) detected, ${images} image(s), ${size}.`),
+  uploadStart: (chapters, batchSize, delayMs) => label(`Iniciando upload de ${chapters} capítulo(s). Batch: ${batchSize}. Delay: ${delayMs}ms.`, `Starting upload of ${chapters} chapter(s). Batch: ${batchSize}. Delay: ${delayMs}ms.`),
+  creatingPostWithImages: (number, images) => label(`Capítulo ${number}: criando post no ImgChest com ${images} imagem(ns).`, `Chapter ${number}: creating ImgChest post with ${images} image(s).`),
   uploadedChapter: (number, count, url) => label(`Capítulo ${number}: ${count} imagens enviadas — ${url}`, `Chapter ${number}: ${count} images uploaded — ${url}`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
@@ -306,9 +309,9 @@ async function runUpload({ modal, form, onSave }) {
   setBusy(true);
   setProgress(modal, { done: 0, total: chaptersToUpload.length, text: copy.preparing() });
   updateConsoleStats(modal, { processed: 0, total: chaptersToUpload.length, skipped: skippedBeforeUpload.length });
-  addConsoleLine(modal, "info", `${stats.albumName}: ${stats.chapters.length} capítulo(s) detectado(s), ${stats.imageCount} imagem(ns), ${formatBytes(stats.size)}.`);
+  addConsoleLine(modal, "info", copy.uploadIntro(stats.albumName, stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
   skippedBeforeUpload.forEach((number) => addConsoleLine(modal, "warn", copy.skippedChapter(number)));
-  addConsoleLine(modal, "info", `Iniciando upload de ${chaptersToUpload.length} capítulo(s). Batch: ${settings.batchSize}. Delay: ${settings.delayMs}ms.`);
+  addConsoleLine(modal, "info", copy.uploadStart(chaptersToUpload.length, settings.batchSize, settings.delayMs));
 
   const imported = [];
   const failed = [];
@@ -349,7 +352,7 @@ async function runUpload({ modal, form, onSave }) {
           },
           onStatus: ({ phase, batchIndex, batchTotal }) => {
             if (phase === "create") {
-              addConsoleLine(modal, "info", `Capítulo ${chapterGroup.number}: criando post no ImgChest com ${chapterGroup.files.length} imagem(ns).`);
+              addConsoleLine(modal, "info", copy.creatingPostWithImages(chapterGroup.number, chapterGroup.files.length));
             }
             if (phase === "add") {
               const message = copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal);
