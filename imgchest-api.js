@@ -2,6 +2,8 @@ const API_BASE = "https://api.imgchest.com/v1";
 const POST_URL_BASE = "https://imgchest.com/p";
 const RATE_LIMIT_BACKOFF_MS = [60000, 90000, 120000, 180000, 300000];
 
+let imgChestCooldownUntil = 0;
+
 export const imgChestUploadDefaults = {
   privacy: "hidden",
   batchSize: 20,
@@ -137,6 +139,26 @@ function clampWaitMs(waitMs, maxWaitMs) {
   return Math.min(waitMs, maxWaitMs);
 }
 
+function setSharedImgChestCooldown(waitMs) {
+  if (!Number.isFinite(waitMs) || waitMs <= 0) return;
+  imgChestCooldownUntil = Math.max(imgChestCooldownUntil, Date.now() + waitMs);
+}
+
+async function respectSharedImgChestCooldown(options = {}) {
+  const waitMs = Math.max(0, imgChestCooldownUntil - Date.now());
+  if (!waitMs) return;
+
+  options.onRateLimit?.({
+    attempt: 0,
+    maxRetries: 0,
+    waitMs,
+    rateLimitInfo: null,
+    soft: true,
+    sharedCooldown: true,
+  });
+  await sleep(waitMs);
+}
+
 function rateLimitWaitMsForAttempt({ attempt, rateLimitWaitMs, maxRateLimitWaitMs, rateLimitInfo }) {
   const fallbackWaitMs = RATE_LIMIT_BACKOFF_MS[Math.min(attempt - 1, RATE_LIMIT_BACKOFF_MS.length - 1)] || rateLimitWaitMs;
   const headerWaitMs = Math.max(rateLimitInfo.retryAfterMs || 0, rateLimitInfo.resetMs || 0);
@@ -150,12 +172,14 @@ async function waitAfterSuccessfulResponse(response, delayMs, options = {}) {
 
   if (rateLimitInfo.remaining !== null && rateLimitInfo.remaining <= 1) {
     const waitMs = clampWaitMs((rateLimitInfo.resetMs || imgChestUploadDefaults.rateLimitWaitMs) + 1500, maxRateLimitWaitMs);
+    setSharedImgChestCooldown(waitMs);
     options.onRateLimit?.({
       attempt: 0,
       maxRetries: 0,
       waitMs,
       rateLimitInfo,
       soft: true,
+      sharedCooldown: false,
     });
     await sleep(waitMs);
     return;
@@ -180,6 +204,8 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
   let lastRateLimitInfo = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    await respectSharedImgChestCooldown(options);
+
     let response;
 
     try {
@@ -203,7 +229,8 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
         rateLimitInfo,
       });
 
-      options.onRateLimit?.({ attempt, maxRetries, waitMs, rateLimitInfo, soft: false });
+      setSharedImgChestCooldown(waitMs);
+      options.onRateLimit?.({ attempt, maxRetries, waitMs, rateLimitInfo, soft: false, sharedCooldown: false });
       await sleep(waitMs);
       continue;
     }
@@ -222,6 +249,7 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
     return payload || {};
   }
 
+  setSharedImgChestCooldown(maxRateLimitWaitMs);
   const error = new Error(`ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). Tente novamente mais tarde ou reduza o tamanho do lote/delay.`);
   error.status = 429;
   error.rateLimited = true;
