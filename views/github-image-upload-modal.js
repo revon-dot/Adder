@@ -43,13 +43,18 @@ const copy = {
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
   invalidChapter: () => label("Informe um número de capítulo válido. Exemplos: 85, 85.5, 10.2.", "Enter a valid chapter number. Examples: 85, 85.5, 10.2."),
   selectImages: () => label("Selecione pelo menos uma imagem.", "Select at least one image."),
-  chapterExists: (number) => label(`O capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
+  chapterExists: (number) => label(`O capítulo ${number} já existe. Escolha substituir ou mesclar para continuar.`, `Chapter ${number} already exists. Choose replace or merge to continue.`),
+  confirmChapterReplace: (number) => label(`O capítulo ${number} já existe no JSON. Substituir o capítulo inteiro na tela depois do upload?`, `Chapter ${number} already exists in the JSON. Replace the entire chapter on screen after upload?`),
+  confirmChapterMerge: (number, group) => label(`O capítulo ${number} já existe. Mesclar/substituir apenas o grupo "${group || "sem nome"}" depois do upload?`, `Chapter ${number} already exists. Merge/replace only the "${group || "empty"}" group after upload?`),
   preparing: () => label("Preparando imagens...", "Preparing images..."),
   checking: (current, total, name) => label(`Verificando ${current}/${total} — ${name}`, `Checking ${current}/${total} — ${name}`),
   processing: (current, total, name) => label(`Processando ${current}/${total} — ${name}`, `Processing ${current}/${total} — ${name}`),
   uploading: (current, total, name) => label(`Enviando ${current}/${total} — ${name}`, `Uploading ${current}/${total} — ${name}`),
   uploadedLine: (name, size) => label(`${name} enviado (${size}).`, `${name} uploaded (${size}).`),
   overwrittenLine: (name, size) => label(`${name} sobrescrito (${size}).`, `${name} overwritten (${size}).`),
+  existingFilesFound: (count) => label(`${count} imagens já existiam e serão sobrescritas.`, `${count} images already existed and will be overwritten.`),
+  confirmOverwriteFiles: (count) => label(`${count} arquivo(s) de imagem já existem no GitHub e serão sobrescritos. Continuar?`, `${count} image file(s) already exist on GitHub and will be overwritten. Continue?`),
+  noExistingFiles: () => label("Nenhuma imagem existente encontrada no destino.", "No existing images found at destination."),
   done: (count) => label(`${count} imagens enviadas. Clique em Salvar no GitHub para gravar o JSON.`, `${count} images uploaded. Click Save to GitHub to write the JSON.`),
   destination: () => label("Destino", "Destination"),
   destinationHint: () => label("As imagens serão salvas nessa pasta do repositório. Depois do upload, o capítulo será atualizado na tela; para gravar o JSON, clique em Salvar no GitHub.", "Images will be saved to this repository folder. After upload, the chapter is updated on screen; to write the JSON, click Save to GitHub."),
@@ -176,6 +181,21 @@ function resolveExistingChapter({ number, conflictMode }) {
   return { exists, shouldContinue: true };
 }
 
+function confirmExistingChapterAction(settings) {
+  const exists = Object.prototype.hasOwnProperty.call(state.current?.data?.chapters || {}, settings.number);
+  if (!exists) return true;
+
+  if (settings.conflictMode === "replace") {
+    return confirm(copy.confirmChapterReplace(settings.number));
+  }
+
+  if (settings.conflictMode === "merge") {
+    return confirm(copy.confirmChapterMerge(settings.number, settings.groupName));
+  }
+
+  return false;
+}
+
 async function getExistingFileSha(client, path) {
   try {
     const file = await client.listContents({
@@ -219,6 +239,8 @@ async function runUpload({ modal, form, onSave }) {
     toast(copy.chapterExists(settings.number), "error");
     return;
   }
+
+  if (!confirmExistingChapterAction(settings)) return;
 
   const progress = modal.querySelector("[data-github-upload-progress]");
   if (progress) progress.hidden = false;
@@ -269,6 +291,15 @@ async function runUpload({ modal, form, onSave }) {
       });
 
       item.sha = await getExistingFileSha(client, item.path);
+    }
+
+    const existingFileCount = items.filter((item) => item.sha).length;
+    if (existingFileCount) {
+      addSummaryLine(modal, "skip", copy.existingFilesFound(existingFileCount));
+      const ok = confirm(copy.confirmOverwriteFiles(existingFileCount));
+      if (!ok) return;
+    } else {
+      addSummaryLine(modal, "ok", copy.noExistingFiles());
     }
 
     for (let index = 0; index < items.length; index += 1) {
