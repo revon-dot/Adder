@@ -158,6 +158,8 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 /* Lightweight editor list */
 .editor-panel, .chapter-manager, .chapter-table-wrap { box-shadow: none; backdrop-filter: none; }
 .editor-panel { background: rgba(21, 23, 29, 0.72); }
+.editor-chapter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 18px; }
+.editor-chapter-actions .btn { flex: 0 0 auto; }
 .chapter-manager { display: grid; gap: 12px; }
 .chapter-toolbar-light { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .chapter-toolbar-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; }
@@ -220,4 +222,6 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
   .chapter-table th:nth-child(4), .chapter-table td:nth-child(4), .chapter-table th:nth-child(5), .chapter-table td:nth-child(5) { display: none; }
   .chapter-mobile-meta { display: block; }
   .compact-actions { flex-wrap: wrap; }
+  .editor-chapter-actions { gap: 10px; }
+  .editor-chapter-actions .btn { width: 100%; }
 }
