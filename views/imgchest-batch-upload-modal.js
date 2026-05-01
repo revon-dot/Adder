@@ -7,7 +7,8 @@ import { collectLocalChapterStats, SUPPORTED_LOCAL_IMAGE_ACCEPT } from "../batch
 import { imgChestUploadDefaults, uploadChapterToImgChest } from "../imgchest-api.js";
 
 const PREFERENCES_KEY = "adder-pages:imgchest-batch-upload-preferences";
-const LARGE_BATCH_CHAPTERS = 10;
+const MAX_BATCH_CHAPTERS = 5;
+const LARGE_BATCH_CHAPTERS = 5;
 const LARGE_BATCH_IMAGES = 300;
 const LARGE_BATCH_BYTES = 500 * 1024 * 1024;
 
@@ -23,7 +24,7 @@ const copy = {
   tokenHint: () => label("Como o Adder é estático, o token é usado diretamente no navegador. Não use em computador compartilhado.", "Because Adder is static, the token is used directly in the browser. Do not use it on a shared computer."),
   rememberToken: () => label("Salvar token neste navegador", "Save token in this browser"),
   folderInput: () => label("Pasta da obra", "Work folder"),
-  folderHint: () => label("Selecione a pasta da obra com subpastas de capítulos, como 0085/, 0086/, 0097.5/.", "Select the work folder with chapter subfolders, such as 0085/, 0086/, 0097.5/."),
+  folderHint: () => label(`Selecione a pasta da obra com até ${MAX_BATCH_CHAPTERS} subpastas de capítulos por envio, como 0085/, 0086/, 0097.5/.`, `Select the work folder with up to ${MAX_BATCH_CHAPTERS} chapter subfolders per upload, such as 0085/, 0086/, 0097.5/.`),
   privacy: () => label("Privacidade", "Privacy"),
   hidden: () => label("hidden", "hidden"),
   public: () => label("public", "public"),
@@ -47,6 +48,7 @@ const copy = {
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
   duplicateChapter: (number, folders) => label(`Capítulo ${number} aparece em mais de uma pasta: ${folders.join(" | ")}`, `Chapter ${number} appears in more than one folder: ${folders.join(" | ")}`),
   duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
+  tooManyChapters: (count) => label(`O upload em lote aceita no máximo ${MAX_BATCH_CHAPTERS} capítulos por envio. Foram detectados ${count}. Selecione uma pasta menor ou envie em partes.`, `Batch upload accepts at most ${MAX_BATCH_CHAPTERS} chapters per upload. ${count} were detected. Select a smaller folder or upload in parts.`),
   largeBatchWarning: () => label("Lote grande. O upload pode demorar e acionar o limite da API.", "Large batch. Upload may take a while and trigger API rate limits."),
   confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size}. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size}. Continue?`),
   missingToken: () => label("Informe um token do ImgChest.", "Enter an ImgChest token."),
@@ -71,7 +73,7 @@ const copy = {
   startUpload: () => label("Enviar lote para ImgChest", "Upload batch to ImgChest"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
-  preferencesHint: () => label("O Adder lembra privacidade, batch, delay, grupo, templates e modo de conflito neste navegador.", "Adder remembers privacy, batch, delay, group, templates, and conflict mode in this browser."),
+  preferencesHint: () => label(`O Adder lembra privacidade, batch, delay, grupo, templates e modo de conflito neste navegador. Limite por envio: ${MAX_BATCH_CHAPTERS} capítulos.`, `Adder remembers privacy, batch, delay, group, templates, and conflict mode in this browser. Limit per upload: ${MAX_BATCH_CHAPTERS} chapters.`),
 };
 
 function loadPreferences() {
@@ -118,7 +120,11 @@ function selectedStats(form) {
 }
 
 function isLargeBatch(stats) {
-  return stats.chapters.length > LARGE_BATCH_CHAPTERS || stats.imageCount > LARGE_BATCH_IMAGES || stats.size > LARGE_BATCH_BYTES;
+  return stats.chapters.length >= LARGE_BATCH_CHAPTERS || stats.imageCount > LARGE_BATCH_IMAGES || stats.size > LARGE_BATCH_BYTES;
+}
+
+function isOverChapterLimit(stats) {
+  return stats.chapters.length > MAX_BATCH_CHAPTERS;
 }
 
 function updateSelectionPreview(form) {
@@ -136,10 +142,11 @@ function updateSelectionPreview(form) {
   const remaining = Math.max(0, stats.chapters.length - 8);
   const skipped = stats.skipped.slice(0, 5).map((folder) => copy.skipNoNumber(folder)).join("\n");
   const duplicates = stats.duplicates.map((item) => copy.duplicateChapter(item.number, item.folders)).join("\n");
-  const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
+  const limitWarning = isOverChapterLimit(stats) ? `\n${copy.tooManyChapters(stats.chapters.length)}` : "";
+  const warning = !limitWarning && isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
 
-  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
-  preview.classList.toggle("warning", isLargeBatch(stats) || Boolean(stats.duplicates.length));
+  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${limitWarning}${warning}`;
+  preview.classList.toggle("warning", isOverChapterLimit(stats) || isLargeBatch(stats) || Boolean(stats.duplicates.length));
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -249,6 +256,12 @@ async function runUpload({ modal, form, onSave }) {
 
   if (stats.duplicates.length) {
     toast(copy.duplicateBlocked(), "error");
+    return false;
+  }
+
+  if (isOverChapterLimit(stats)) {
+    toast(copy.tooManyChapters(stats.chapters.length), "error");
+    updateSelectionPreview(form);
     return false;
   }
 
