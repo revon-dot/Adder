@@ -26,17 +26,12 @@ const copy = {
   folderInput: () => label("Pasta da obra", "Work folder"),
   folderHint: () => label("Selecione a pasta da obra. Cada subpasta numerada vira um capítulo, como 0085/, 0086/ ou 0097.5/.", "Select the work folder. Each numbered subfolder becomes a chapter, such as 0085/, 0086/, or 0097.5/."),
   safetyHint: () => label(
-    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Se um capítulo falhar, o Adder tenta apagar só o post parcial daquele capítulo e mantém os capítulos anteriores que já subiram.`,
-    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. If a chapter fails, Adder tries to delete only that chapter's partial post and keeps previous successful chapters.`,
+    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Capítulos que já existem no JSON são pulados antes de chamar a API. Cada capítulo concluído entra no editor imediatamente.`,
+    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. Chapters that already exist in the JSON are skipped before calling the API. Each completed chapter is added to the editor immediately.`,
   ),
   group: () => label("Grupo", "Group"),
   chapterTitleTemplate: () => label("Título automático", "Automatic title"),
   chapterTitleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
-  conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
-  conflictCancel: () => label("Cancelar tudo", "Cancel all"),
-  conflictSkip: () => label("Pular existentes", "Skip existing"),
-  conflictReplace: () => label("Substituir capítulo", "Replace chapter"),
-  conflictMerge: () => label("Substituir/mesclar grupo", "Replace/merge group"),
   selectionEmpty: () => label("Nenhuma pasta selecionada ainda.", "No folder selected yet."),
   selectionSummary: (chapters, images, size) => label(`${chapters} capítulos detectados · ${images} imagens · ${size}`, `${chapters} chapters detected · ${images} images · ${size}`),
   detectedPreview: (items, remaining) => label(`Detectado: ${items}${remaining > 0 ? ` +${remaining} capítulo(s)` : ""}`, `Detected: ${items}${remaining > 0 ? ` +${remaining} chapter(s)` : ""}`),
@@ -48,8 +43,6 @@ const copy = {
   missingToken: () => label("Informe um token do ImgChest.", "Enter an ImgChest token."),
   noFiles: () => label("Selecione uma pasta com imagens.", "Select a folder with images."),
   noChapters: () => label("Nenhuma subpasta com número de capítulo foi detectada.", "No chapter-numbered subfolders were detected."),
-  chapterExists: (number) => label(`Capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
-  confirmReplace: (count) => label(`${count} capítulo(s) existente(s) serão substituídos/mesclados no JSON. Continuar?`, `${count} existing chapter(s) will be replaced/merged in the JSON. Continue?`),
   preparing: () => label("Preparando lote...", "Preparing batch..."),
   creating: (current, total, number) => label(`Criando post do capítulo ${number} (${current}/${total})`, `Creating post for chapter ${number} (${current}/${total})`),
   addingBatch: (number, batch, total) => label(`Capítulo ${number}: adicionando request ${batch}/${total}`, `Chapter ${number}: adding request ${batch}/${total}`),
@@ -60,14 +53,15 @@ const copy = {
   uploadStart: (chapters) => label(`Iniciando upload de ${chapters} capítulo(s).`, `Starting upload of ${chapters} chapter(s).`),
   creatingPostWithImages: (number, images) => label(`Capítulo ${number}: criando post no ImgChest com ${images} imagem(ns).`, `Chapter ${number}: creating ImgChest post with ${images} image(s).`),
   uploadedChapter: (number, count, url) => label(`Capítulo ${number}: ${count} imagens enviadas — ${url}`, `Chapter ${number}: ${count} images uploaded — ${url}`),
-  skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
+  appliedChapter: (number) => label(`Capítulo ${number}: adicionado ao editor.`, `Chapter ${number}: added to the editor.`),
+  skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe no JSON.`, `Chapter ${number} skipped because it already exists in the JSON.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
-  nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
+  nothingImported: () => label("Nenhum capítulo novo foi importado.", "No new chapters were imported."),
   stoppedWithPartial: (imported, failedNumber) => label(
-    `Upload interrompido no capítulo ${failedNumber}. ${imported} capítulo(s) concluído(s) serão importados para o editor. Clique em Salvar no GitHub para gravar o JSON.`,
-    `Upload stopped at chapter ${failedNumber}. ${imported} completed chapter(s) will be imported into the editor. Click Save to GitHub to write the JSON.`,
+    `Upload interrompido no capítulo ${failedNumber}. ${imported} capítulo(s) concluído(s) já foram adicionados ao editor. Clique em Salvar no GitHub para gravar o JSON.`,
+    `Upload stopped at chapter ${failedNumber}. ${imported} completed chapter(s) were already added to the editor. Click Save to GitHub to write the JSON.`,
   ),
-  done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
+  done: (count) => label(`${count} capítulos adicionados ao editor. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters added to the editor. Click Save to GitHub to write the JSON.`),
   summary: () => label("Resumo", "Summary"),
   console: () => label("Console de upload", "Upload console"),
   consoleHint: () => label("Acompanhe cada etapa do envio em tempo real.", "Follow every upload step in real time."),
@@ -75,7 +69,7 @@ const copy = {
   startUpload: () => label("Enviar lote para ImgChest", "Upload batch to ImgChest"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
-  preferencesHint: () => label("O Adder lembra grupo, título automático e modo de conflito neste navegador. Privacidade, título do post, batch, delay e retry são automáticos.", "Adder remembers group, automatic title, and conflict mode in this browser. Privacy, post title, batch, delay, and retry are automatic."),
+  preferencesHint: () => label("O Adder lembra grupo e título automático neste navegador. Capítulos já existentes são pulados automaticamente antes do upload.", "Adder remembers group and automatic title in this browser. Existing chapters are automatically skipped before upload."),
 };
 
 function loadPreferences() {
@@ -89,7 +83,6 @@ function loadPreferences() {
 function savePreferences(form) {
   try {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify({
-      conflictMode: String(form.conflictMode?.value || "skip"),
       groupName: String(form.groupName?.value || ""),
       chapterTitleTemplate: String(form.chapterTitleTemplate?.value || ""),
     }));
@@ -198,7 +191,7 @@ function collectSettings(form) {
     groupName: String(formData.get("groupName") || "").trim(),
     titleTemplate: AUTO_POST_TITLE_TEMPLATE,
     chapterTitleTemplate: String(formData.get("chapterTitleTemplate") || "").trim(),
-    conflictMode: String(formData.get("conflictMode") || "skip"),
+    conflictMode: "skip",
   };
 }
 
@@ -215,7 +208,27 @@ function saveTokenPreference(settings) {
   }
 }
 
-async function runUpload({ modal, form, onSave }) {
+function chapterExistsInEditor(number) {
+  return Object.prototype.hasOwnProperty.call(state.current?.data?.chapters || {}, number);
+}
+
+function buildImportedChapter(settings, result) {
+  return {
+    number: result.number,
+    postId: result.postId,
+    postUrl: result.postUrl,
+    chapter: {
+      title: chapterTitleFromTemplate(settings.chapterTitleTemplate, result.number),
+      volume: "",
+      last_updated: String(Math.floor(Date.now() / 1000)),
+      groups: {
+        [settings.groupName]: result.imageUrls,
+      },
+    },
+  };
+}
+
+async function runUpload({ modal, form, onSave, onChapterUploaded }) {
   const settings = collectSettings(form);
   const stats = selectedStats(form);
   savePreferences(form);
@@ -240,52 +253,38 @@ async function runUpload({ modal, form, onSave }) {
     return false;
   }
 
-  const existing = state.current?.data?.chapters || {};
-  const existingChapters = stats.chapters.filter((chapter) => Object.prototype.hasOwnProperty.call(existing, chapter.number));
-  if (existingChapters.length && settings.conflictMode === "cancel") {
-    toast(copy.chapterExists(existingChapters.map((chapter) => chapter.number).join(", ")), "error");
-    return false;
-  }
-  if (existingChapters.length && ["replace", "merge"].includes(settings.conflictMode) && !confirm(copy.confirmReplace(existingChapters.length))) {
-    return false;
-  }
-
-  const skippedBeforeUpload = [];
-  const chaptersToUpload = settings.conflictMode === "skip"
-    ? stats.chapters.filter((chapter) => {
-      const exists = Object.prototype.hasOwnProperty.call(existing, chapter.number);
-      if (exists) {
-        skippedBeforeUpload.push(chapter.number);
-        addSummaryLine(modal, "skip", copy.skippedChapter(chapter.number));
-      }
-      return !exists;
-    })
-    : stats.chapters;
-
-  if (!chaptersToUpload.length) {
-    toast(copy.nothingImported(), "error");
-    return false;
-  }
-
   saveTokenPreference(settings);
   modal.querySelector("[data-imgchest-progress]")?.removeAttribute("hidden");
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: chaptersToUpload.length, text: copy.preparing() });
-  updateConsoleStats(modal, { processed: 0, total: chaptersToUpload.length, skipped: skippedBeforeUpload.length });
-  addConsoleLine(modal, "info", copy.safetyHint());
-  addConsoleLine(modal, "info", copy.uploadIntro(stats.albumName, stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
-  skippedBeforeUpload.forEach((number) => addConsoleLine(modal, "warn", copy.skippedChapter(number)));
-  addConsoleLine(modal, "info", copy.uploadStart(chaptersToUpload.length));
 
   const imported = [];
+  const skipped = [];
   let failed = null;
+  let processed = 0;
+
+  setProgress(modal, { done: 0, total: stats.chapters.length, text: copy.preparing() });
+  updateConsoleStats(modal, { processed: 0, total: stats.chapters.length, ok: 0, failed: 0, skipped: 0 });
+  addConsoleLine(modal, "info", copy.safetyHint());
+  addConsoleLine(modal, "info", copy.uploadIntro(stats.albumName, stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
+  addConsoleLine(modal, "info", copy.uploadStart(stats.chapters.length));
 
   try {
-    for (let index = 0; index < chaptersToUpload.length; index += 1) {
-      const chapterGroup = chaptersToUpload[index];
-      const currentText = copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number);
-      setProgress(modal, { done: index, total: chaptersToUpload.length, text: currentText });
+    for (let index = 0; index < stats.chapters.length; index += 1) {
+      const chapterGroup = stats.chapters[index];
+
+      if (chapterExistsInEditor(chapterGroup.number)) {
+        skipped.push(chapterGroup.number);
+        processed += 1;
+        addSummaryLine(modal, "skip", copy.skippedChapter(chapterGroup.number));
+        addConsoleLine(modal, "warn", copy.skippedChapter(chapterGroup.number));
+        setProgress(modal, { done: processed, total: stats.chapters.length, text: copy.skippedChapter(chapterGroup.number) });
+        updateConsoleStats(modal, { processed, total: stats.chapters.length, ok: imported.length, failed: 0, skipped: skipped.length });
+        continue;
+      }
+
+      const currentText = copy.creating(index + 1, stats.chapters.length, chapterGroup.number);
+      setProgress(modal, { done: processed, total: stats.chapters.length, text: currentText });
       addConsoleLine(modal, "info", currentText);
 
       try {
@@ -300,7 +299,7 @@ async function runUpload({ modal, form, onSave }) {
               const message = copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries);
               addSummaryLine(modal, "skip", message);
               addConsoleLine(modal, "warn", message);
-              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
+              setProgress(modal, { done: processed, total: stats.chapters.length, text: message });
             },
           },
           onStatus: ({ phase, batchIndex, batchTotal }) => {
@@ -308,70 +307,50 @@ async function runUpload({ modal, form, onSave }) {
             if (phase === "add") {
               const message = copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal);
               addConsoleLine(modal, "info", message);
-              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
+              setProgress(modal, { done: processed, total: stats.chapters.length, text: message });
             }
             if (phase === "refresh") {
               const message = copy.refreshing(chapterGroup.number);
               addConsoleLine(modal, "info", message);
-              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
+              setProgress(modal, { done: processed, total: stats.chapters.length, text: message });
             }
             if (phase === "rollback") {
               const message = copy.rollingBack(chapterGroup.number);
               addConsoleLine(modal, "warn", message);
-              setProgress(modal, { done: index, total: chaptersToUpload.length, text: message });
+              setProgress(modal, { done: processed, total: stats.chapters.length, text: message });
             }
           },
         });
 
-        imported.push({
-          number: result.number,
-          postId: result.postId,
-          postUrl: result.postUrl,
-          chapter: {
-            title: chapterTitleFromTemplate(settings.chapterTitleTemplate, result.number),
-            volume: "",
-            last_updated: String(Math.floor(Date.now() / 1000)),
-            groups: {
-              [settings.groupName]: result.imageUrls,
-            },
-          },
-        });
+        const importedItem = buildImportedChapter(settings, result);
+        imported.push(importedItem);
+        onChapterUploaded?.({ ...importedItem, conflictMode: settings.conflictMode });
+        processed += 1;
 
         const successMessage = copy.uploadedChapter(result.number, result.imageUrls.length, result.postUrl);
         addSummaryLine(modal, "ok", successMessage);
         addConsoleLine(modal, "success", successMessage);
+        addConsoleLine(modal, "success", copy.appliedChapter(result.number));
+        setProgress(modal, { done: processed, total: stats.chapters.length, text: successMessage });
+        updateConsoleStats(modal, { processed, total: stats.chapters.length, ok: imported.length, failed: 0, skipped: skipped.length });
       } catch (error) {
         failed = { number: chapterGroup.number, error };
+        processed += 1;
         const errorText = copy.failedChapter(chapterGroup.number, error.message || String(error));
         addSummaryLine(modal, "fail", errorText);
         addConsoleLine(modal, "error", errorText);
-        updateConsoleStats(modal, {
-          processed: index + 1,
-          total: chaptersToUpload.length,
-          ok: imported.length,
-          failed: 1,
-          skipped: skippedBeforeUpload.length,
-        });
+        updateConsoleStats(modal, { processed, total: stats.chapters.length, ok: imported.length, failed: 1, skipped: skipped.length });
         break;
       }
-
-      setProgress(modal, { done: index + 1, total: chaptersToUpload.length, text: copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number) });
-      updateConsoleStats(modal, {
-        processed: index + 1,
-        total: chaptersToUpload.length,
-        ok: imported.length,
-        failed: 0,
-        skipped: skippedBeforeUpload.length,
-      });
     }
 
     if (!imported.length) {
-      addConsoleLine(modal, "error", copy.nothingImported());
-      toast(copy.nothingImported(), "error");
+      addConsoleLine(modal, failed ? "error" : "warn", copy.nothingImported());
+      toast(copy.nothingImported(), failed ? "error" : "warning");
       return false;
     }
 
-    onSave({ imported, failed: failed ? [failed] : [], conflictMode: settings.conflictMode });
+    onSave?.({ imported, skipped, failed: failed ? [failed] : [], conflictMode: settings.conflictMode, alreadyApplied: Boolean(onChapterUploaded) });
 
     if (failed) {
       const message = copy.stoppedWithPartial(imported.length, failed.number);
@@ -395,7 +374,7 @@ async function runUpload({ modal, form, onSave }) {
   }
 }
 
-export function showImgChestBatchUploadModal({ onSave }) {
+export function showImgChestBatchUploadModal({ onSave, onChapterUploaded } = {}) {
   const preferences = loadPreferences();
   const savedToken = getSavedImgChestToken();
   const modal = document.createElement("div");
@@ -447,16 +426,6 @@ export function showImgChestBatchUploadModal({ onSave }) {
               <input name="chapterTitleTemplate" value="${attr(preferences.chapterTitleTemplate || "")}" placeholder="${attr(copy.chapterTitleTemplatePlaceholder())}" />
             </label>
           </div>
-
-          <label class="field">
-            <span>${copy.conflictMode()}</span>
-            <select name="conflictMode">
-              <option value="cancel" ${preferences.conflictMode === "cancel" ? "selected" : ""}>${copy.conflictCancel()}</option>
-              <option value="skip" ${(preferences.conflictMode || "skip") === "skip" ? "selected" : ""}>${copy.conflictSkip()}</option>
-              <option value="replace" ${preferences.conflictMode === "replace" ? "selected" : ""}>${copy.conflictReplace()}</option>
-              <option value="merge" ${preferences.conflictMode === "merge" ? "selected" : ""}>${copy.conflictMerge()}</option>
-            </select>
-          </label>
           <p class="hint">${copy.preferencesHint()}</p>
 
           <section class="multi-chapter-progress" data-imgchest-progress hidden>
@@ -497,11 +466,10 @@ export function showImgChestBatchUploadModal({ onSave }) {
   form.folder?.addEventListener("change", () => updateSelectionPreview(form));
   form.groupName?.addEventListener("input", remember);
   form.chapterTitleTemplate?.addEventListener("input", remember);
-  form.conflictMode?.addEventListener("change", remember);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const uploaded = await runUpload({ modal, form, onSave });
+    const uploaded = await runUpload({ modal, form, onSave, onChapterUploaded });
     if (uploaded) close();
   });
 
