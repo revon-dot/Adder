@@ -162,7 +162,6 @@ export function prettyJson(manifest) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-
 function encodeBase64Unicode(text) {
   const bytes = new TextEncoder().encode(String(text));
   let binary = "";
@@ -174,9 +173,16 @@ function encodeBase64Unicode(text) {
   return btoa(binary);
 }
 
+function encodeBase64Url(text) {
+  return encodeBase64Unicode(text)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
 export function buildCubariGistUrl({ owner, repo, branch, path }) {
   const cleanPath = String(path || "").replace(/^\/+|\/+$/g, "");
   if (!owner || !repo || !branch || !cleanPath) return "";
   const payload = `raw/${owner}/${repo}/${branch}/${cleanPath}`;
-  return `https://cubari.moe/read/gist/${encodeURIComponent(encodeBase64Unicode(payload))}/`;
+  return `https://cubari.moe/read/gist/${encodeBase64Url(payload)}/`;
 }
