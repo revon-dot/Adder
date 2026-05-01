@@ -4,7 +4,7 @@ import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { formatBytes } from "../image-processing.js";
 import { collectLocalChapterStats, SUPPORTED_LOCAL_IMAGE_ACCEPT } from "../batch-chapter-files.js";
-import { imgChestUploadDefaults, uploadChapterToImgChest, deleteImgChestPost } from "../imgchest-api.js";
+import { imgChestUploadDefaults, uploadChapterToImgChest } from "../imgchest-api.js";
 
 const PREFERENCES_KEY = "adder-pages:imgchest-batch-upload-preferences";
 const LARGE_BATCH_CHAPTERS = 10;
@@ -26,8 +26,8 @@ const copy = {
   folderInput: () => label("Pasta da obra", "Work folder"),
   folderHint: () => label("Selecione a pasta da obra. Cada subpasta numerada vira um capítulo, como 0085/, 0086/ ou 0097.5/.", "Select the work folder. Each numbered subfolder becomes a chapter, such as 0085/, 0086/, or 0097.5/."),
   safetyHint: () => label(
-    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Se um capítulo falhar, o Adder cancela tudo, tenta apagar os posts criados e não altera o JSON.`,
-    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. If a chapter fails, Adder cancels everything, tries to delete created posts, and does not change the JSON.`,
+    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Se um capítulo falhar, o Adder tenta apagar só o post parcial daquele capítulo e mantém os capítulos anteriores que já subiram.`,
+    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. If a chapter fails, Adder tries to delete only that chapter's partial post and keeps previous successful chapters.`,
   ),
   group: () => label("Grupo", "Group"),
   chapterTitleTemplate: () => label("Título automático", "Automatic title"),
@@ -62,10 +62,11 @@ const copy = {
   uploadedChapter: (number, count, url) => label(`Capítulo ${number}: ${count} imagens enviadas — ${url}`, `Chapter ${number}: ${count} images uploaded — ${url}`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
-  cleanup: () => label("Falha detectada. Apagando posts já criados neste lote e mantendo o JSON intacto...", "Failure detected. Deleting posts created in this batch and keeping the JSON untouched..."),
-  cleanupPost: (number) => label(`Apagando post do capítulo ${number}.`, `Deleting post for chapter ${number}.`),
   nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
-  canceledAtomic: () => label("Upload cancelado. Nada foi escrito no JSON.", "Upload canceled. Nothing was written to the JSON."),
+  stoppedWithPartial: (imported, failedNumber) => label(
+    `Upload interrompido no capítulo ${failedNumber}. ${imported} capítulo(s) concluído(s) serão importados para o editor. Clique em Salvar no GitHub para gravar o JSON.`,
+    `Upload stopped at chapter ${failedNumber}. ${imported} completed chapter(s) will be imported into the editor. Click Save to GitHub to write the JSON.`,
+  ),
   done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
   summary: () => label("Resumo", "Summary"),
   console: () => label("Console de upload", "Upload console"),
@@ -150,11 +151,7 @@ function setProgress(modal, { done, total, text }) {
 }
 
 function timestamp() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function addConsoleLine(modal, level, text) {
@@ -211,27 +208,10 @@ function chapterTitleFromTemplate(template, number) {
 
 function saveTokenPreference(settings) {
   try {
-    if (settings.rememberToken) {
-      localStorage.setItem(IMG_TOKEN_KEY, settings.token);
-    } else {
-      localStorage.removeItem(IMG_TOKEN_KEY);
-    }
+    if (settings.rememberToken) localStorage.setItem(IMG_TOKEN_KEY, settings.token);
+    else localStorage.removeItem(IMG_TOKEN_KEY);
   } catch {
     // Ignore localStorage errors.
-  }
-}
-
-async function cleanupImportedPosts({ modal, token, imported }) {
-  if (!imported.length) return;
-  addConsoleLine(modal, "warn", copy.cleanup());
-  addSummaryLine(modal, "skip", copy.cleanup());
-
-  for (const item of [...imported].reverse()) {
-    if (!item.postId) continue;
-    const message = copy.cleanupPost(item.number);
-    addConsoleLine(modal, "warn", message);
-    addSummaryLine(modal, "skip", message);
-    await deleteImgChestPost({ token, postId: item.postId, retry: { maxRetries: 1 } });
   }
 }
 
@@ -244,25 +224,20 @@ async function runUpload({ modal, form, onSave }) {
     toast(copy.missingToken(), "error");
     return false;
   }
-
   if (!stats.files.length) {
     toast(copy.noFiles(), "error");
     return false;
   }
-
   if (!stats.chapters.length) {
     toast(copy.noChapters(), "error");
     return false;
   }
-
   if (stats.duplicates.length) {
     toast(copy.duplicateBlocked(), "error");
     return false;
   }
-
-  if (isLargeBatch(stats)) {
-    const ok = confirm(copy.confirmLargeBatch(stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
-    if (!ok) return false;
+  if (isLargeBatch(stats) && !confirm(copy.confirmLargeBatch(stats.chapters.length, stats.imageCount, formatBytes(stats.size)))) {
+    return false;
   }
 
   const existing = state.current?.data?.chapters || {};
@@ -271,9 +246,8 @@ async function runUpload({ modal, form, onSave }) {
     toast(copy.chapterExists(existingChapters.map((chapter) => chapter.number).join(", ")), "error");
     return false;
   }
-  if (existingChapters.length && ["replace", "merge"].includes(settings.conflictMode)) {
-    const ok = confirm(copy.confirmReplace(existingChapters.length));
-    if (!ok) return false;
+  if (existingChapters.length && ["replace", "merge"].includes(settings.conflictMode) && !confirm(copy.confirmReplace(existingChapters.length))) {
+    return false;
   }
 
   const skippedBeforeUpload = [];
@@ -294,9 +268,7 @@ async function runUpload({ modal, form, onSave }) {
   }
 
   saveTokenPreference(settings);
-
-  const progress = modal.querySelector("[data-imgchest-progress]");
-  if (progress) progress.hidden = false;
+  modal.querySelector("[data-imgchest-progress]")?.removeAttribute("hidden");
   disableForm(form, true);
   setBusy(true);
   setProgress(modal, { done: 0, total: chaptersToUpload.length, text: copy.preparing() });
@@ -332,9 +304,7 @@ async function runUpload({ modal, form, onSave }) {
             },
           },
           onStatus: ({ phase, batchIndex, batchTotal }) => {
-            if (phase === "create") {
-              addConsoleLine(modal, "info", copy.creatingPostWithImages(chapterGroup.number, chapterGroup.files.length));
-            }
+            if (phase === "create") addConsoleLine(modal, "info", copy.creatingPostWithImages(chapterGroup.number, chapterGroup.files.length));
             if (phase === "add") {
               const message = copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal);
               addConsoleLine(modal, "info", message);
@@ -375,6 +345,13 @@ async function runUpload({ modal, form, onSave }) {
         const errorText = copy.failedChapter(chapterGroup.number, error.message || String(error));
         addSummaryLine(modal, "fail", errorText);
         addConsoleLine(modal, "error", errorText);
+        updateConsoleStats(modal, {
+          processed: index + 1,
+          total: chaptersToUpload.length,
+          ok: imported.length,
+          failed: 1,
+          skipped: skippedBeforeUpload.length,
+        });
         break;
       }
 
@@ -383,17 +360,9 @@ async function runUpload({ modal, form, onSave }) {
         processed: index + 1,
         total: chaptersToUpload.length,
         ok: imported.length,
-        failed: failed ? 1 : 0,
+        failed: 0,
         skipped: skippedBeforeUpload.length,
       });
-    }
-
-    if (failed) {
-      await cleanupImportedPosts({ modal, token: settings.token, imported });
-      addConsoleLine(modal, "error", copy.canceledAtomic());
-      addSummaryLine(modal, "fail", copy.canceledAtomic());
-      toast(copy.canceledAtomic(), "error");
-      return false;
     }
 
     if (!imported.length) {
@@ -402,16 +371,23 @@ async function runUpload({ modal, form, onSave }) {
       return false;
     }
 
-    onSave({ imported, failed: [], conflictMode: settings.conflictMode });
+    onSave({ imported, failed: failed ? [failed] : [], conflictMode: settings.conflictMode });
+
+    if (failed) {
+      const message = copy.stoppedWithPartial(imported.length, failed.number);
+      addConsoleLine(modal, "warn", message);
+      addSummaryLine(modal, "skip", message);
+      toast(message, "warning");
+      return true;
+    }
+
     addConsoleLine(modal, "success", copy.done(imported.length));
     toast(copy.done(imported.length), "success");
     return true;
   } catch (error) {
-    await cleanupImportedPosts({ modal, token: settings.token, imported });
     addConsoleLine(modal, "error", error.message || String(error));
-    addConsoleLine(modal, "error", copy.canceledAtomic());
     toast(error.message || String(error), "error");
-    return false;
+    return imported.length > 0;
   } finally {
     setBusy(false);
     disableForm(form, false);
