@@ -33,6 +33,29 @@ function getChapterPage(entries) {
   };
 }
 
+function selectedSet() {
+  return new Set(state.editor.selectedChapters || []);
+}
+
+function renderBulkDeleteBar() {
+  const count = state.editor.selectedChapters?.length || 0;
+  if (!count) return "";
+
+  const selectedLabel = document.documentElement.lang === "en" ? "selected" : "selecionados";
+  const clearLabel = document.documentElement.lang === "en" ? "Clear selection" : "Limpar seleção";
+  const deleteLabel = document.documentElement.lang === "en" ? "Delete selected" : "Excluir selecionados";
+
+  return `
+    <div class="chapter-bulk-actions" id="chapter-bulk-actions">
+      <span class="status-pill">${count} ${escapeHtml(selectedLabel)}</span>
+      <div class="row-actions">
+        <button class="btn ghost small" type="button" id="clear-selected-chapters-btn">${escapeHtml(clearLabel)}</button>
+        <button class="btn danger small" type="button" id="delete-selected-chapters-btn">${escapeHtml(deleteLabel)}</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderChapterPageSizeSelect() {
   const current = String(state.editor.chapterPageSize || 10);
   const selectedValue = state.editor.chapterPageSizeSelected ? current : "";
@@ -81,6 +104,7 @@ export function renderChapterCards(manifest) {
         </div>
       </div>
 
+      ${renderBulkDeleteBar()}
       ${visibleEntries.length ? renderChapterTable(visibleEntries) : renderNoResults()}
 
       <div class="chapter-pagination">
@@ -102,11 +126,26 @@ function renderNoResults() {
 }
 
 function renderChapterTable(entries) {
+  const selected = selectedSet();
+  const visibleNumbers = entries.map(([number]) => number);
+  const checkedCount = visibleNumbers.filter((number) => selected.has(number)).length;
+  const allVisibleChecked = visibleNumbers.length > 0 && checkedCount === visibleNumbers.length;
+  const partiallyChecked = checkedCount > 0 && !allVisibleChecked;
+
   return `
     <div class="chapter-table-wrap">
       <table class="chapter-table">
         <thead>
           <tr>
+            <th class="chapter-select-col">
+              <input
+                type="checkbox"
+                data-select-visible-chapters
+                aria-label="Selecionar capítulos visíveis"
+                ${allVisibleChecked ? "checked" : ""}
+                ${partiallyChecked ? "data-indeterminate=\"true\"" : ""}
+              />
+            </th>
             <th>${t("numberAbbr")}</th>
             <th>${t("title")}</th>
             <th>${t("volume")}</th>
@@ -124,8 +163,18 @@ function renderChapterTable(entries) {
 }
 
 export function renderChapterRow(number, chapter = {}) {
+  const isSelected = selectedSet().has(number);
+
   return `
-    <tr data-chapter-card data-chapter-number="${escapeHtml(number)}">
+    <tr data-chapter-card data-chapter-number="${escapeHtml(number)}" class="${isSelected ? "chapter-row-selected" : ""}">
+      <td class="chapter-select-col">
+        <input
+          type="checkbox"
+          data-select-chapter="${escapeHtml(number)}"
+          aria-label="Selecionar capítulo ${escapeHtml(number)}"
+          ${isSelected ? "checked" : ""}
+        />
+      </td>
       <td><span class="badge small-badge">${escapeHtml(number)}</span></td>
       <td>
         <strong>${escapeHtml(chapter.title || t("untitled"))}</strong>
