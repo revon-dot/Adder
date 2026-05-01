@@ -8,6 +8,8 @@ import { bindDashboardEvents } from "./dashboard-events.js";
 import { t } from "../i18n.js";
 import { githubImageDefaults } from "../github-image-links.js";
 
+let dashboardLoadId = 0;
+
 function withTimeout(promise, ms = 20000) {
   return Promise.race([
     promise,
@@ -15,6 +17,21 @@ function withTimeout(promise, ms = 20000) {
       setTimeout(() => reject(new Error("Tempo limite ao carregar arquivos do GitHub.")), ms);
     }),
   ]);
+}
+
+function isDashboardLoadCurrent(loadId) {
+  return loadId === dashboardLoadId;
+}
+
+function isDashboardSurfaceVisible(loadId) {
+  return Boolean(
+    document.querySelector(`[data-dashboard-load-id="${loadId}"]`) ||
+    document.querySelector(".dashboard-header"),
+  );
+}
+
+function canUpdateDashboard(loadId) {
+  return isDashboardLoadCurrent(loadId) && isDashboardSurfaceVisible(loadId);
 }
 
 function resetStorageEstimate(root = githubImageDefaults.imagesRoot) {
@@ -62,8 +79,9 @@ async function collectRepositoryStorage(client, path) {
   return result;
 }
 
-function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect) {
+function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect, loadId = dashboardLoadId) {
   try {
+    if (!canUpdateDashboard(loadId)) return;
     if (!document.querySelector(".dashboard-header")) return;
     renderDashboardCallback(navigateToEditor, navigateToConnect);
   } catch {
@@ -71,12 +89,15 @@ function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEdito
   }
 }
 
-async function loadStorageEstimate(client, renderDashboardCallback = null, navigateToEditor = null, navigateToConnect = null) {
+async function loadStorageEstimate(client, renderDashboardCallback = null, navigateToEditor = null, navigateToConnect = null, loadId = dashboardLoadId) {
   const root = githubImageDefaults.imagesRoot;
+  if (!canUpdateDashboard(loadId)) return;
   resetStorageEstimate(root);
 
   try {
     const estimate = await withTimeout(collectRepositoryStorage(client, root), 30000);
+    if (!canUpdateDashboard(loadId)) return;
+
     state.storage = {
       status: "ready",
       root,
@@ -85,6 +106,8 @@ async function loadStorageEstimate(client, renderDashboardCallback = null, navig
       error: "",
     };
   } catch (error) {
+    if (!canUpdateDashboard(loadId)) return;
+
     state.storage = {
       status: "error",
       root,
@@ -95,12 +118,16 @@ async function loadStorageEstimate(client, renderDashboardCallback = null, navig
   }
 
   if (renderDashboardCallback) {
-    refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect);
+    refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect, loadId);
   }
 }
 
 export async function loadDashboard(navigateToDashboard, navigateToConnect = null, navigateToEditor = null) {
-  renderLoading(t("loadingJsons"));
+  const loadId = dashboardLoadId + 1;
+  dashboardLoadId = loadId;
+
+  renderLoading(t("loadingJsons"), loadId);
+
   try {
     const client = ensureClient();
     const config = state.config;
@@ -111,18 +138,24 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
       path: config.jsonPath,
     }));
 
+    if (!canUpdateDashboard(loadId)) return;
+
     if (!jsonFiles.length) {
       state.files = [];
       navigateToDashboard();
-      loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect);
+      loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect, loadId);
       return;
     }
 
     const loaded = [];
 
     for (const file of jsonFiles) {
+      if (!canUpdateDashboard(loadId)) return;
+
       try {
         const fetched = await client.getFile({ ...config, path: file.path });
+        if (!canUpdateDashboard(loadId)) return;
+
         const parsed = normalizeManifest(JSON.parse(fetched.text));
         loaded.push({
           name: file.name,
@@ -133,6 +166,8 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
           data: parsed,
         });
       } catch (error) {
+        if (!canUpdateDashboard(loadId)) return;
+
         loaded.push({
           name: file.name,
           path: file.path,
@@ -143,10 +178,14 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
       }
     }
 
+    if (!canUpdateDashboard(loadId)) return;
+
     state.files = loaded;
     navigateToDashboard();
-    loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect);
+    loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect, loadId);
   } catch (error) {
+    if (!canUpdateDashboard(loadId)) return;
+
     if (error?.status === 404 || error?.status === 409) {
       state.files = [];
       navigateToDashboard();
@@ -157,9 +196,9 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
   }
 }
 
-function renderLoading(text = "Carregando...") {
+function renderLoading(text = "Carregando...", loadId = dashboardLoadId) {
   render(`
-    <section class="panel loading">
+    <section class="panel loading" data-dashboard-load-id="${escapeHtml(String(loadId))}">
       <div>
         <div class="spinner"></div>
         <h2>${escapeHtml(text)}</h2>
