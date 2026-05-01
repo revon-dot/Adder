@@ -58,10 +58,15 @@ const copy = {
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
   nothingImported: () => label("Nenhum capítulo novo foi importado.", "No new chapters were imported."),
   stoppedWithPartial: (imported, failedNumber) => label(
-    `Upload interrompido no capítulo ${failedNumber}. ${imported} capítulo(s) concluído(s) já foram adicionados ao editor. Clique em Salvar no GitHub para gravar o JSON.`,
-    `Upload stopped at chapter ${failedNumber}. ${imported} completed chapter(s) were already added to the editor. Click Save to GitHub to write the JSON.`,
+    `Upload interrompido no capítulo ${failedNumber}. ${imported} capítulo(s) concluído(s) já foram adicionados ao editor.`,
+    `Upload stopped at chapter ${failedNumber}. ${imported} completed chapter(s) were already added to the editor.`,
   ),
-  done: (count) => label(`${count} capítulos adicionados ao editor. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters added to the editor. Click Save to GitHub to write the JSON.`),
+  done: (count) => label(`${count} capítulos adicionados ao editor.`, `${count} chapters added to the editor.`),
+  resultReady: () => label("Resultado pronto. Confira o log abaixo antes de decidir o próximo passo.", "Result ready. Review the log below before choosing the next step."),
+  saveToGithub: () => label("Salvar no GitHub", "Save to GitHub"),
+  reviewFiles: () => label("Verificar os arquivos", "Review files"),
+  savingToGithub: () => label("Salvando no GitHub...", "Saving to GitHub..."),
+  githubSaveRequested: () => label("Salvamento solicitado. Se houver erro, ele aparecerá no editor.", "Save requested. If there is an error, it will appear in the editor."),
   summary: () => label("Resumo", "Summary"),
   console: () => label("Console de upload", "Upload console"),
   consoleHint: () => label("Acompanhe cada etapa do envio em tempo real.", "Follow every upload step in real time."),
@@ -174,9 +179,26 @@ function addSummaryLine(modal, className, text) {
   summary.scrollTop = summary.scrollHeight;
 }
 
+function setResultMode(modal, message) {
+  const form = modal.querySelector("#imgchest-batch-upload-form");
+  const submit = modal.querySelector("[data-start-upload]");
+  const cancel = modal.querySelector("[data-close-modal-footer]");
+  const save = modal.querySelector("[data-save-github]");
+  const review = modal.querySelector("[data-review-files]");
+
+  form?.classList.add("upload-finished");
+  if (submit) submit.hidden = true;
+  if (cancel) cancel.hidden = true;
+  if (save) save.hidden = false;
+  if (review) review.hidden = false;
+  setProgress(modal, { done: 1, total: 1, text: message || copy.resultReady() });
+  addConsoleLine(modal, "info", copy.resultReady());
+}
+
 function disableForm(form, disabled) {
   form.querySelectorAll("input, select, button").forEach((element) => {
     if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLButtonElement) {
+      if (element.dataset.keepEnabled === "true") return;
       element.disabled = disabled;
     }
   });
@@ -347,7 +369,8 @@ async function runUpload({ modal, form, onSave, onChapterUploaded }) {
     if (!imported.length) {
       addConsoleLine(modal, failed ? "error" : "warn", copy.nothingImported());
       toast(copy.nothingImported(), failed ? "error" : "warning");
-      return false;
+      setResultMode(modal, copy.nothingImported());
+      return true;
     }
 
     onSave?.({ imported, skipped, failed: failed ? [failed] : [], conflictMode: settings.conflictMode, alreadyApplied: Boolean(onChapterUploaded) });
@@ -357,16 +380,20 @@ async function runUpload({ modal, form, onSave, onChapterUploaded }) {
       addConsoleLine(modal, "warn", message);
       addSummaryLine(modal, "skip", message);
       toast(message, "warning");
+      setResultMode(modal, message);
       return true;
     }
 
-    addConsoleLine(modal, "success", copy.done(imported.length));
-    toast(copy.done(imported.length), "success");
+    const message = copy.done(imported.length);
+    addConsoleLine(modal, "success", message);
+    toast(message, "success");
+    setResultMode(modal, message);
     return true;
   } catch (error) {
     addConsoleLine(modal, "error", error.message || String(error));
     toast(error.message || String(error), "error");
-    return imported.length > 0;
+    setResultMode(modal, error.message || String(error));
+    return true;
   } finally {
     setBusy(false);
     disableForm(form, false);
@@ -374,7 +401,7 @@ async function runUpload({ modal, form, onSave, onChapterUploaded }) {
   }
 }
 
-export function showImgChestBatchUploadModal({ onSave, onChapterUploaded } = {}) {
+export function showImgChestBatchUploadModal({ onSave, onChapterUploaded, onSaveToGithub, onReviewFiles } = {}) {
   const preferences = loadPreferences();
   const savedToken = getSavedImgChestToken();
   const modal = document.createElement("div");
@@ -450,8 +477,10 @@ export function showImgChestBatchUploadModal({ onSave, onChapterUploaded } = {})
         </div>
 
         <div class="drawer-actions multi-chapter-actions">
-          <button class="btn primary" type="submit">${copy.startUpload()}</button>
-          <button class="btn ghost" type="button" data-close-modal>${copy.cancel()}</button>
+          <button class="btn primary" type="submit" data-start-upload>${copy.startUpload()}</button>
+          <button class="btn primary" type="button" data-save-github data-keep-enabled="true" hidden>${copy.saveToGithub()}</button>
+          <button class="btn ghost" type="button" data-review-files data-keep-enabled="true" hidden>${copy.reviewFiles()}</button>
+          <button class="btn ghost" type="button" data-close-modal data-close-modal-footer>${copy.cancel()}</button>
         </div>
       </form>
     </aside>
@@ -467,10 +496,20 @@ export function showImgChestBatchUploadModal({ onSave, onChapterUploaded } = {})
   form.groupName?.addEventListener("input", remember);
   form.chapterTitleTemplate?.addEventListener("input", remember);
 
+  modal.querySelector("[data-save-github]")?.addEventListener("click", async () => {
+    addConsoleLine(modal, "info", copy.savingToGithub());
+    await onSaveToGithub?.();
+    addConsoleLine(modal, "success", copy.githubSaveRequested());
+  });
+
+  modal.querySelector("[data-review-files]")?.addEventListener("click", () => {
+    onReviewFiles?.();
+    close();
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const uploaded = await runUpload({ modal, form, onSave, onChapterUploaded });
-    if (uploaded) close();
+    await runUpload({ modal, form, onSave, onChapterUploaded });
   });
 
   updateSelectionPreview(form);
