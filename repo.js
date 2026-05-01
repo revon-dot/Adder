@@ -2,8 +2,12 @@ import { state } from "./state.js";
 import { GitHubClient } from "./github.js";
 import { buildCubariGistUrl } from "./cubari.js";
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 export function ensureClient() {
-  if (!state.config) throw new Error("Configuração ausente.");
+  if (!state.config) throw new Error(label("Configuração ausente.", "Missing configuration."));
   state.client = new GitHubClient(state.config.token);
   return state.client;
 }
