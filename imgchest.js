@@ -49,6 +49,22 @@ function imagePosition(image, index) {
   return Number.isFinite(position) ? position : index;
 }
 
+function normalizeApiPost(payload = {}) {
+  const data = payload?.data || {};
+  const images = Array.isArray(data.images) ? data.images : [];
+
+  return {
+    id: String(data.id || data.post_id || payload.id || payload.post_id || ""),
+    title: String(data.title || "").trim(),
+    images: uniqueValidLinks(
+      images
+        .map((image, index) => ({ image, index }))
+        .sort((a, b) => imagePosition(a.image, a.index) - imagePosition(b.image, b.index))
+        .map(({ image }) => image.link)
+    ),
+  };
+}
+
 export function extractImgChestPostId(albumUrl = "") {
   try {
     const url = new URL(String(albumUrl).trim());
@@ -112,13 +128,7 @@ async function getPostWithApi(postId, token = "") {
     throw error;
   }
 
-  const images = Array.isArray(payload?.data?.images) ? payload.data.images : [];
-  return uniqueValidLinks(
-    images
-      .map((image, index) => ({ image, index }))
-      .sort((a, b) => imagePosition(a.image, a.index) - imagePosition(b.image, b.index))
-      .map(({ image }) => image.link)
-  );
+  return normalizeApiPost(payload);
 }
 
 async function scrapePublicPage(albumUrl = "") {
@@ -135,9 +145,9 @@ async function scrapePublicPage(albumUrl = "") {
   }
 }
 
-export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
+export async function scrapeImgChestAlbumDetails(albumUrl = "", options = {}) {
   const rawUrl = String(albumUrl || "").trim();
-  if (!rawUrl) return [];
+  if (!rawUrl) return { title: "", images: [] };
 
   const url = normalizeImgChestAlbumUrl(rawUrl);
   const postId = extractImgChestPostId(url);
@@ -146,8 +156,8 @@ export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
 
   if (token) {
     try {
-      const links = await getPostWithApi(postId, token);
-      if (links.length) return links;
+      const post = await getPostWithApi(postId, token);
+      if (post.images.length) return { title: post.title, images: post.images };
       errors.push("A API do ImgChest respondeu, mas não retornou imagens.");
     } catch (error) {
       errors.push(error.message || String(error));
@@ -156,7 +166,7 @@ export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
 
   try {
     const links = await scrapePublicPage(url);
-    if (links.length) return links;
+    if (links.length) return { title: "", images: links };
     errors.push("A página foi lida, mas não encontrei URLs CDN do ImgChest.");
   } catch (error) {
     errors.push(error.message || String(error));
@@ -166,4 +176,9 @@ export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
     `Não consegui importar este álbum ImgChest. ${errors.join(" ")} ` +
       "Em GitHub Pages não dá para rodar Playwright/Python; use um ImgChest API token ou cole as URLs CDN manualmente."
   );
+}
+
+export async function scrapeImgChestAlbum(albumUrl = "", options = {}) {
+  const details = await scrapeImgChestAlbumDetails(albumUrl, options);
+  return details.images;
 }
