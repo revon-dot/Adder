@@ -27,20 +27,34 @@ function upsertSavedFileRecord({ oldPath, desiredPath, record, isRenamingExistin
   state.files.push(record);
 }
 
-export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeSnapshot = null) {
-  const result = collectManifestFromEditor();
-  if (!result) return;
+export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeSnapshot = null, options = {}) {
+  const {
+    renderAfterSave = true,
+    confirmWarnings = true,
+    confirmRename = true,
+    confirmOverwrite = true,
+    showValidation = true,
+    toastSuccess = true,
+    toastErrors = true,
+    busy = true,
+    commitMessage = null,
+  } = options;
+
+  const result = collectManifestFromEditor({ silent: !toastErrors });
+  if (!result) return false;
   const { manifest, fileName, validation } = result;
+
   if (validation.errors.length) {
-    showValidationModal(validation);
-    return;
+    if (showValidation) showValidationModal(validation);
+    else if (toastErrors) toast(validation.errors[0], "error");
+    return false;
   }
 
-  if (validation.warnings.length) {
+  if (validation.warnings.length && confirmWarnings) {
     const ok = confirm(
       `${label("Avisos encontrados:", "Warnings found:")}\n\n${validation.warnings.slice(0, 6).join("\n")}\n\n${label("Salvar mesmo assim?", "Save anyway?")}`,
     );
-    if (!ok) return;
+    if (!ok) return false;
   }
 
   const client = ensureClient();
@@ -51,27 +65,27 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeS
   const existingTarget = targetIndex >= 0 ? state.files[targetIndex] : null;
   const isOverwritingDifferentFile = Boolean(existingTarget && existingTarget.path !== oldPath);
 
-  if (isRenamingExisting) {
+  if (isRenamingExisting && confirmRename) {
     const ok = confirm(label(
       "Você mudou o nome do arquivo. O Adder Pages vai criar ou atualizar o novo arquivo, mas não apaga automaticamente o antigo. Continuar?",
       "You changed the file name. Adder Pages will create or update the new file, but it will not automatically delete the old one. Continue?",
     ));
-    if (!ok) return;
+    if (!ok) return false;
   }
 
-  if (isOverwritingDifferentFile) {
+  if (isOverwritingDifferentFile && confirmOverwrite) {
     const ok = confirm(label(
       `Já existe um arquivo chamado ${fileName}. Salvar vai substituir esse JSON. Continuar?`,
       `A file named ${fileName} already exists. Saving will replace that JSON. Continue?`,
     ));
-    if (!ok) return;
+    if (!ok) return false;
   }
 
   const targetSha = existingTarget?.sha || (!state.current.isNew && !isRenamingExisting ? state.current.sha : undefined);
-  const message = `${state.current.isNew ? "Create" : "Update"} ${fileName} via Adder Pages`;
+  const message = commitMessage || `${state.current.isNew ? "Create" : "Update"} ${fileName} via Adder Pages`;
 
   try {
-    setBusy(true);
+    if (busy) setBusy(true);
     const saveResult = await client.putFile({
       ...state.config,
       path: desiredPath,
@@ -108,11 +122,13 @@ export async function saveCurrentEditor(navigateToDashboard, renderEditor, makeS
       isRenamingExisting,
     });
 
-    toast(label("JSON salvo no GitHub.", "JSON saved to GitHub."), "success");
-    renderEditor(navigateToDashboard);
+    if (toastSuccess) toast(label("JSON salvo no GitHub.", "JSON saved to GitHub."), "success");
+    if (renderAfterSave) renderEditor(navigateToDashboard);
+    return true;
   } catch (error) {
-    toast(errorMessage(error), "error");
+    if (toastErrors) toast(errorMessage(error), "error");
+    return false;
   } finally {
-    setBusy(false);
+    if (busy) setBusy(false);
   }
 }
