@@ -6,7 +6,6 @@ import { repoLabel, ensureClient } from "../repo.js";
 import { renderDashboardPage } from "./dashboard-page.js";
 import { bindDashboardEvents } from "./dashboard-events.js";
 import { t } from "../i18n.js";
-import { githubImageDefaults } from "../github-image-links.js";
 
 let dashboardLoadId = 0;
 
@@ -39,94 +38,6 @@ function canUpdateDashboard(loadId) {
   return isDashboardLoadCurrent(loadId) && isDashboardSurfaceVisible(loadId);
 }
 
-function resetStorageEstimate(root = githubImageDefaults.imagesRoot) {
-  state.storage = {
-    status: "loading",
-    root,
-    bytes: 0,
-    fileCount: 0,
-    error: "",
-  };
-}
-
-async function collectRepositoryStorage(client, path) {
-  let contents;
-
-  try {
-    contents = await client.listContents({
-      ...state.config,
-      path,
-    });
-  } catch (error) {
-    if (error.status === 404) {
-      return { bytes: 0, fileCount: 0 };
-    }
-    throw error;
-  }
-
-  const items = Array.isArray(contents) ? contents : [contents];
-  const result = { bytes: 0, fileCount: 0 };
-
-  for (const item of items) {
-    if (item.type === "file") {
-      result.bytes += Number(item.size) || 0;
-      result.fileCount += 1;
-      continue;
-    }
-
-    if (item.type === "dir") {
-      const nested = await collectRepositoryStorage(client, item.path);
-      result.bytes += nested.bytes;
-      result.fileCount += nested.fileCount;
-    }
-  }
-
-  return result;
-}
-
-function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect, loadId = dashboardLoadId) {
-  try {
-    if (!isDashboardLoadCurrent(loadId)) return;
-    if (!hasDashboardContentSurface()) return;
-    renderDashboardCallback(navigateToEditor, navigateToConnect);
-  } catch {
-    // Storage numbers are informational. Never let them break the dashboard.
-  }
-}
-
-async function loadStorageEstimate(client, renderDashboardCallback = null, navigateToEditor = null, navigateToConnect = null, loadId = dashboardLoadId) {
-  const root = githubImageDefaults.imagesRoot;
-  if (!canUpdateDashboard(loadId)) return;
-  resetStorageEstimate(root);
-
-  try {
-    const estimate = await withTimeout(collectRepositoryStorage(client, root), 30000);
-    if (!canUpdateDashboard(loadId)) return;
-
-    state.storage = {
-      status: "ready",
-      root,
-      bytes: estimate.bytes,
-      fileCount: estimate.fileCount,
-      error: "",
-    };
-  } catch (error) {
-    if (!canUpdateDashboard(loadId)) return;
-
-    state.storage = {
-      status: "error",
-      root,
-      bytes: 0,
-      fileCount: 0,
-      error: errorMessage(error),
-    };
-  }
-
-  if (renderDashboardCallback) {
-    refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect, loadId);
-  }
-}
-
 export async function loadDashboard(navigateToDashboard, navigateToConnect = null, navigateToEditor = null) {
   const loadId = dashboardLoadId + 1;
   dashboardLoadId = loadId;
@@ -136,7 +47,6 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
   try {
     const client = ensureClient();
     const config = state.config;
-    resetStorageEstimate();
 
     const jsonFiles = await withTimeout(client.listJsonFiles({
       ...config,
@@ -148,7 +58,6 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
     if (!jsonFiles.length) {
       state.files = [];
       navigateToDashboard();
-      loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect, loadId);
       return;
     }
 
@@ -187,7 +96,6 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
 
     state.files = loaded;
     navigateToDashboard();
-    loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect, loadId);
   } catch (error) {
     if (!canUpdateDashboard(loadId)) return;
 
