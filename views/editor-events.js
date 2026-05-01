@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { toast } from "../ui.js";
+import { sortChapterEntries } from "../cubari.js";
 import { showChapterEditModal } from "./chapter-modal.js";
 import { t } from "../i18n.js";
 
@@ -8,7 +9,133 @@ function rerender(renderEditor, navigateToDashboard, updateEditorStats) {
   else updateEditorStats();
 }
 
+function selectedSet() {
+  return new Set(state.editor.selectedChapters || []);
+}
+
+function saveSelectedChapters(selected) {
+  state.editor.selectedChapters = [...selected];
+}
+
+function getVisibleChapterNumbers(scope = document) {
+  return [...scope.querySelectorAll("[data-select-chapter]")]
+    .map((input) => input.dataset.selectChapter)
+    .filter(Boolean);
+}
+
+function selectRange({ scope, selected, from, to, checked }) {
+  const visibleNumbers = getVisibleChapterNumbers(scope);
+  const fromIndex = visibleNumbers.indexOf(from);
+  const toIndex = visibleNumbers.indexOf(to);
+
+  if (fromIndex < 0 || toIndex < 0) {
+    if (checked) selected.add(to);
+    else selected.delete(to);
+    return;
+  }
+
+  const start = Math.min(fromIndex, toIndex);
+  const end = Math.max(fromIndex, toIndex);
+
+  visibleNumbers.slice(start, end + 1).forEach((number) => {
+    if (checked) selected.add(number);
+    else selected.delete(number);
+  });
+}
+
+function pruneSelection() {
+  const chapters = state.current?.data?.chapters || {};
+  const valid = new Set(Object.keys(chapters));
+  state.editor.selectedChapters = (state.editor.selectedChapters || []).filter((number) => valid.has(number));
+  if (state.editor.lastSelectedChapter && !valid.has(state.editor.lastSelectedChapter)) {
+    state.editor.lastSelectedChapter = null;
+  }
+}
+
+function bulkDeleteConfirm(numbers) {
+  const preview = numbers.slice(0, 12).join(", ");
+  const rest = numbers.length > 12 ? `, +${numbers.length - 12}` : "";
+  return confirm(`Excluir ${numbers.length} capítulo(s)?\n\n${preview}${rest}\n\nEssa alteração só será gravada no GitHub quando você clicar em Salvar.`);
+}
+
+function bindSelectionControls(scope, { updateEditorStats, renderEditor, navigateToDashboard }) {
+  pruneSelection();
+
+  scope.querySelectorAll("[data-indeterminate='true']").forEach((input) => {
+    if (input instanceof HTMLInputElement) input.indeterminate = true;
+  });
+
+  scope.querySelectorAll("[data-select-chapter]").forEach((input) => {
+    if (input.dataset.bound === "true") return;
+    input.dataset.bound = "true";
+    input.addEventListener("click", (event) => {
+      const number = input.dataset.selectChapter;
+      if (!number) return;
+
+      const selected = selectedSet();
+      const checked = input.checked;
+
+      if (event.shiftKey && state.editor.lastSelectedChapter) {
+        selectRange({
+          scope,
+          selected,
+          from: state.editor.lastSelectedChapter,
+          to: number,
+          checked,
+        });
+      } else if (checked) {
+        selected.add(number);
+      } else {
+        selected.delete(number);
+      }
+
+      state.editor.lastSelectedChapter = number;
+      saveSelectedChapters(selected);
+      rerender(renderEditor, navigateToDashboard, updateEditorStats);
+    });
+  });
+
+  scope.querySelector("[data-select-visible-chapters]")?.addEventListener("change", (event) => {
+    const selected = selectedSet();
+    const visibleNumbers = getVisibleChapterNumbers(scope);
+    const checked = event.currentTarget.checked;
+
+    visibleNumbers.forEach((number) => {
+      if (checked) selected.add(number);
+      else selected.delete(number);
+    });
+
+    state.editor.lastSelectedChapter = checked ? visibleNumbers.at(-1) || null : null;
+    saveSelectedChapters(selected);
+    rerender(renderEditor, navigateToDashboard, updateEditorStats);
+  });
+
+  scope.querySelector("#clear-selected-chapters-btn")?.addEventListener("click", () => {
+    state.editor.selectedChapters = [];
+    state.editor.lastSelectedChapter = null;
+    rerender(renderEditor, navigateToDashboard, updateEditorStats);
+  });
+
+  scope.querySelector("#delete-selected-chapters-btn")?.addEventListener("click", () => {
+    const chapters = state.current?.data?.chapters || {};
+    const selected = new Set(state.editor.selectedChapters || []);
+    const sortedNumbers = sortChapterEntries(chapters)
+      .map(([number]) => number)
+      .filter((number) => selected.has(number));
+
+    if (!sortedNumbers.length) return;
+    if (!bulkDeleteConfirm(sortedNumbers)) return;
+
+    sortedNumbers.forEach((number) => delete chapters[number]);
+    state.editor.selectedChapters = [];
+    state.editor.lastSelectedChapter = null;
+    rerender(renderEditor, navigateToDashboard, updateEditorStats);
+  });
+}
+
 export function bindChapterButtons(scope = document, { updateEditorStats = () => {}, renderEditor = null, navigateToDashboard = null } = {}) {
+  bindSelectionControls(scope, { updateEditorStats, renderEditor, navigateToDashboard });
+
   scope.querySelector("#chapter-search-input")?.addEventListener("input", (event) => {
     state.editor.chapterSearch = event.currentTarget.value;
     state.editor.chapterPage = 1;
@@ -53,7 +180,10 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
         chapter,
         onSave: ({ number: nextNumber, chapter: nextChapter }) => {
           if (!state.current.data.chapters) state.current.data.chapters = {};
-          if (nextNumber !== number) delete state.current.data.chapters[number];
+          if (nextNumber !== number) {
+            delete state.current.data.chapters[number];
+            state.editor.selectedChapters = (state.editor.selectedChapters || []).filter((selected) => selected !== number);
+          }
           state.current.data.chapters[nextNumber] = nextChapter;
           rerender(renderEditor, navigateToDashboard, updateEditorStats);
         },
@@ -69,6 +199,8 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
       if (!number) return;
       if (!confirm(t("removeChapterConfirm", { number }))) return;
       delete state.current?.data?.chapters?.[number];
+      state.editor.selectedChapters = (state.editor.selectedChapters || []).filter((selected) => selected !== number);
+      if (state.editor.lastSelectedChapter === number) state.editor.lastSelectedChapter = null;
       rerender(renderEditor, navigateToDashboard, updateEditorStats);
     });
   });
