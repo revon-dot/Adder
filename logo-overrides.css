@@ -247,18 +247,63 @@
 }
 
 @media (max-width: 700px) {
-  .manga-table {
-    min-width: 500px;
+  .manga-list-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
   }
 
-  .manga-table th:nth-child(3),
+  .manga-table,
+  .manga-table tbody,
+  .manga-table tr,
+  .manga-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .manga-table {
+    border-collapse: separate;
+  }
+
+  .manga-table thead {
+    display: none;
+  }
+
+  .manga-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .manga-table tbody tr {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line-soft);
+    border-radius: 16px;
+    background: rgba(10, 12, 18, 0.7);
+  }
+
+  .manga-table tbody tr:hover {
+    background: rgba(79, 140, 255, 0.08);
+  }
+
+  .manga-table td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .manga-table td:nth-child(2) {
+    display: block;
+    padding-left: 50px;
+  }
+
   .manga-table td:nth-child(3) {
     display: none;
   }
 
-  .manga-table th:nth-child(4),
   .manga-table td:nth-child(4) {
-    display: table-cell;
+    display: block;
   }
 
   .manga-mobile-meta {
@@ -271,7 +316,15 @@
   }
 
   .manga-actions {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .manga-actions .btn {
+    width: 100%;
+    white-space: normal;
   }
 }
 
@@ -316,25 +369,21 @@
     overflow-wrap: anywhere;
   }
 
-  .manga-table,
   .chapter-table {
     min-width: 460px;
   }
 
-  .manga-table th,
-  .manga-table td {
-    padding: 9px 10px;
+  .manga-table td:nth-child(2) {
+    padding-left: 50px;
   }
 
-  .manga-actions,
+  .manga-actions {
+    grid-template-columns: 1fr;
+  }
+
   .drawer-actions {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .manga-actions .btn {
-    width: 100%;
-    white-space: normal;
   }
 
   .chapter-drawer {
