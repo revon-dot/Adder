@@ -170,11 +170,13 @@ export function bindChapterButtons(scope = document, { updateEditorStats = () =>
   bindSelectionControls(scope, { updateEditorStats, renderEditor, navigateToDashboard });
 
   scope.querySelector("#chapter-search-input")?.addEventListener("input", (event) => {
-    state.editor.chapterSearch = event.currentTarget.value;
+    const nextSearch = event.currentTarget.value;
+    state.editor.chapterSearch = nextSearch;
     state.editor.chapterPage = 1;
     rerender(renderEditor, navigateToDashboard, updateEditorStats);
     const input = document.querySelector("#chapter-search-input");
     input?.focus();
+    input?.setSelectionRange(nextSearch.length, nextSearch.length);
   });
 
   scope.querySelector("#chapter-page-size-select")?.addEventListener("change", (event) => {
