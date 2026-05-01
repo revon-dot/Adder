@@ -1,11 +1,13 @@
 const API_BASE = "https://api.imgchest.com/v1";
 const POST_URL_BASE = "https://imgchest.com/p";
+const RATE_LIMIT_BACKOFF_MS = [60000, 90000, 120000, 180000, 300000];
 
 export const imgChestUploadDefaults = {
   privacy: "hidden",
   batchSize: 20,
-  delayMs: 1150,
-  rateLimitWaitMs: 60000,
+  delayMs: 2500,
+  rateLimitWaitMs: 90000,
+  maxRateLimitWaitMs: 300000,
   maxRetries: 10,
 };
 
@@ -76,10 +78,106 @@ function errorMessageFromPayload(payload, fallback) {
   return payload?.message || payload?.error || payload?.errors?.[0]?.message || fallback;
 }
 
+function responseHeader(response, name) {
+  try {
+    return response?.headers?.get(name) || response?.headers?.get(name.toLowerCase()) || "";
+  } catch {
+    return "";
+  }
+}
+
+function parseHeaderNumber(value) {
+  const number = Number.parseInt(String(value || "").trim(), 10);
+  return Number.isFinite(number) ? number : null;
+}
+
+function parseRetryAfterMs(value = "") {
+  const clean = String(value || "").trim();
+  if (!clean) return 0;
+
+  if (/^\d+$/.test(clean)) {
+    return Number(clean) * 1000;
+  }
+
+  const dateMs = Date.parse(clean);
+  if (Number.isFinite(dateMs)) {
+    return Math.max(0, dateMs - Date.now());
+  }
+
+  return 0;
+}
+
+function parseRateLimitResetMs(value = "") {
+  const number = Number(String(value || "").trim());
+  if (!Number.isFinite(number) || number <= 0) return 0;
+
+  // APIs commonly return X-RateLimit-Reset either as Unix seconds, Unix milliseconds,
+  // or as a relative number of seconds. Support all three shapes defensively.
+  if (number > 1_000_000_000_000) return Math.max(0, number - Date.now());
+  if (number > 1_000_000_000) return Math.max(0, (number * 1000) - Date.now());
+  return number * 1000;
+}
+
+function rateLimitInfoFromResponse(response) {
+  const retryAfter = responseHeader(response, "Retry-After");
+  const reset = responseHeader(response, "X-RateLimit-Reset");
+
+  return {
+    limit: parseHeaderNumber(responseHeader(response, "X-RateLimit-Limit")),
+    remaining: parseHeaderNumber(responseHeader(response, "X-RateLimit-Remaining")),
+    reset,
+    resetMs: parseRateLimitResetMs(reset),
+    retryAfter,
+    retryAfterMs: parseRetryAfterMs(retryAfter),
+  };
+}
+
+function clampWaitMs(waitMs, maxWaitMs) {
+  if (!Number.isFinite(waitMs) || waitMs <= 0) return 0;
+  return Math.min(waitMs, maxWaitMs);
+}
+
+function rateLimitWaitMsForAttempt({ attempt, rateLimitWaitMs, maxRateLimitWaitMs, rateLimitInfo }) {
+  const fallbackWaitMs = RATE_LIMIT_BACKOFF_MS[Math.min(attempt - 1, RATE_LIMIT_BACKOFF_MS.length - 1)] || rateLimitWaitMs;
+  const headerWaitMs = Math.max(rateLimitInfo.retryAfterMs || 0, rateLimitInfo.resetMs || 0);
+  const waitMs = headerWaitMs || fallbackWaitMs;
+  return clampWaitMs(waitMs + 1500, maxRateLimitWaitMs);
+}
+
+async function waitAfterSuccessfulResponse(response, delayMs, options = {}) {
+  const maxRateLimitWaitMs = toPositiveInt(options.maxRateLimitWaitMs, imgChestUploadDefaults.maxRateLimitWaitMs);
+  const rateLimitInfo = rateLimitInfoFromResponse(response);
+
+  if (rateLimitInfo.remaining !== null && rateLimitInfo.remaining <= 1) {
+    const waitMs = clampWaitMs((rateLimitInfo.resetMs || imgChestUploadDefaults.rateLimitWaitMs) + 1500, maxRateLimitWaitMs);
+    options.onRateLimit?.({
+      attempt: 0,
+      maxRetries: 0,
+      waitMs,
+      rateLimitInfo,
+      soft: true,
+    });
+    await sleep(waitMs);
+    return;
+  }
+
+  await sleep(delayMs);
+}
+
+function decorateHttpError(error, response, payload) {
+  error.status = response.status;
+  error.payload = payload;
+  error.rateLimitInfo = rateLimitInfoFromResponse(response);
+  if (response.status === 429) error.rateLimited = true;
+  return error;
+}
+
 export async function requestWithImgChestRetry(requestFactory, options = {}) {
   const delayMs = toPositiveInt(options.delayMs, imgChestUploadDefaults.delayMs);
   const rateLimitWaitMs = toPositiveInt(options.rateLimitWaitMs, imgChestUploadDefaults.rateLimitWaitMs);
+  const maxRateLimitWaitMs = toPositiveInt(options.maxRateLimitWaitMs, imgChestUploadDefaults.maxRateLimitWaitMs);
   const maxRetries = toPositiveInt(options.maxRetries, imgChestUploadDefaults.maxRetries);
+  let lastRateLimitInfo = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     let response;
@@ -94,29 +192,41 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
       throw error;
     }
 
-    if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After");
-      const waitMs = retryAfter && /^\d+$/.test(retryAfter)
-        ? Number(retryAfter) * 1000
-        : rateLimitWaitMs;
+    const rateLimitInfo = rateLimitInfoFromResponse(response);
 
-      options.onRateLimit?.({ attempt, maxRetries, waitMs });
+    if (response.status === 429) {
+      lastRateLimitInfo = rateLimitInfo;
+      const waitMs = rateLimitWaitMsForAttempt({
+        attempt,
+        rateLimitWaitMs,
+        maxRateLimitWaitMs,
+        rateLimitInfo,
+      });
+
+      options.onRateLimit?.({ attempt, maxRetries, waitMs, rateLimitInfo, soft: false });
       await sleep(waitMs);
       continue;
     }
 
-    await sleep(delayMs);
-
     const payload = await parseResponsePayload(response);
 
     if (!response.ok) {
-      throw new Error(errorMessageFromPayload(payload, `ImgChest API retornou HTTP ${response.status}.`));
+      throw decorateHttpError(
+        new Error(errorMessageFromPayload(payload, `ImgChest API retornou HTTP ${response.status}.`)),
+        response,
+        payload,
+      );
     }
 
+    await waitAfterSuccessfulResponse(response, delayMs, options);
     return payload || {};
   }
 
-  throw new Error(`ImgChest API falhou depois de ${maxRetries} tentativa(s).`);
+  const error = new Error(`ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). Tente novamente mais tarde ou reduza o tamanho do lote/delay.`);
+  error.status = 429;
+  error.rateLimited = true;
+  error.rateLimitInfo = lastRateLimitInfo;
+  throw error;
 }
 
 function extractPostData(payload = {}) {
