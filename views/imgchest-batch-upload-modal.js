@@ -65,6 +65,9 @@ const copy = {
   nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
   done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
   summary: () => label("Resumo", "Summary"),
+  console: () => label("Console de upload", "Upload console"),
+  consoleHint: () => label("Acompanhe cada etapa do envio em tempo real.", "Follow every upload step in real time."),
+  stats: (done, total, ok, failed, skipped) => label(`Processados: ${done}/${total} · OK: ${ok} · Falhas: ${failed} · Pulados: ${skipped}`, `Processed: ${done}/${total} · OK: ${ok} · Failed: ${failed} · Skipped: ${skipped}`),
   startUpload: () => label("Enviar lote para ImgChest", "Upload batch to ImgChest"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
@@ -145,6 +148,31 @@ function setProgress(modal, { done, total, text }) {
   const progress = total ? Math.round((done / total) * 100) : 0;
   if (status) status.textContent = text || copy.preparing();
   if (bar) bar.style.setProperty("--progress", `${progress}%`);
+}
+
+function timestamp() {
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function addConsoleLine(modal, level, text) {
+  const consoleEl = modal.querySelector("[data-imgchest-console]");
+  if (!consoleEl) return;
+  const line = document.createElement("div");
+  line.className = `upload-console-line ${level}`;
+  line.innerHTML = `<span class="time">[${timestamp()}]</span> <span class="level">${String(level || "info").toUpperCase()}</span> <span class="message"></span>`;
+  line.querySelector(".message").textContent = text;
+  consoleEl.appendChild(line);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function updateConsoleStats(modal, { processed = 0, total = 0, ok = 0, failed = 0, skipped = 0 } = {}) {
+  const stats = modal.querySelector("[data-imgchest-console-stats]");
+  if (!stats) return;
+  stats.textContent = copy.stats(processed, total, ok, failed, skipped);
 }
 
 function addSummaryLine(modal, className, text) {
@@ -240,10 +268,14 @@ async function runUpload({ modal, form, onSave }) {
     if (!ok) return false;
   }
 
+  const skippedBeforeUpload = [];
   const chaptersToUpload = settings.conflictMode === "skip"
     ? stats.chapters.filter((chapter) => {
       const exists = Object.prototype.hasOwnProperty.call(existing, chapter.number);
-      if (exists) addSummaryLine(modal, "skip", copy.skippedChapter(chapter.number));
+      if (exists) {
+        skippedBeforeUpload.push(chapter.number);
+        addSummaryLine(modal, "skip", copy.skippedChapter(chapter.number));
+      }
       return !exists;
     })
     : stats.chapters;
@@ -260,6 +292,10 @@ async function runUpload({ modal, form, onSave }) {
   disableForm(form, true);
   setBusy(true);
   setProgress(modal, { done: 0, total: chaptersToUpload.length, text: copy.preparing() });
+  updateConsoleStats(modal, { processed: 0, total: chaptersToUpload.length, skipped: skippedBeforeUpload.length });
+  addConsoleLine(modal, "info", `${stats.albumName}: ${stats.chapters.length} capítulo(s) detectado(s), ${stats.imageCount} imagem(ns), ${formatBytes(stats.size)}.`);
+  skippedBeforeUpload.forEach((number) => addConsoleLine(modal, "warn", copy.skippedChapter(number)));
+  addConsoleLine(modal, "info", `Iniciando upload de ${chaptersToUpload.length} capítulo(s). Batch: ${settings.batchSize}. Delay: ${settings.delayMs}ms.`);
 
   const imported = [];
   const failed = [];
@@ -267,11 +303,13 @@ async function runUpload({ modal, form, onSave }) {
   try {
     for (let index = 0; index < chaptersToUpload.length; index += 1) {
       const chapterGroup = chaptersToUpload[index];
+      const currentText = copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number);
       setProgress(modal, {
         done: index,
         total: chaptersToUpload.length,
-        text: copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number),
+        text: currentText,
       });
+      addConsoleLine(modal, "info", currentText);
 
       try {
         const result = await uploadChapterToImgChest({
@@ -286,27 +324,36 @@ async function runUpload({ modal, form, onSave }) {
             rateLimitWaitMs: imgChestUploadDefaults.rateLimitWaitMs,
             maxRetries: imgChestUploadDefaults.maxRetries,
             onRateLimit: ({ waitMs, attempt, maxRetries }) => {
-              addSummaryLine(modal, "skip", copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries));
+              const message = copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries);
+              addSummaryLine(modal, "skip", message);
+              addConsoleLine(modal, "warn", message);
               setProgress(modal, {
                 done: index,
                 total: chaptersToUpload.length,
-                text: copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries),
+                text: message,
               });
             },
           },
           onStatus: ({ phase, batchIndex, batchTotal }) => {
+            if (phase === "create") {
+              addConsoleLine(modal, "info", `Capítulo ${chapterGroup.number}: criando post no ImgChest com ${chapterGroup.files.length} imagem(ns).`);
+            }
             if (phase === "add") {
+              const message = copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal);
+              addConsoleLine(modal, "info", message);
               setProgress(modal, {
                 done: index,
                 total: chaptersToUpload.length,
-                text: copy.addingBatch(chapterGroup.number, batchIndex + 1, batchTotal),
+                text: message,
               });
             }
             if (phase === "refresh") {
+              const message = copy.refreshing(chapterGroup.number);
+              addConsoleLine(modal, "info", message);
               setProgress(modal, {
                 done: index,
                 total: chaptersToUpload.length,
-                text: copy.refreshing(chapterGroup.number),
+                text: message,
               });
             }
           },
@@ -326,10 +373,14 @@ async function runUpload({ modal, form, onSave }) {
           },
         });
 
-        addSummaryLine(modal, "ok", copy.uploadedChapter(result.number, result.imageUrls.length, result.postUrl));
+        const successMessage = copy.uploadedChapter(result.number, result.imageUrls.length, result.postUrl);
+        addSummaryLine(modal, "ok", successMessage);
+        addConsoleLine(modal, "success", successMessage);
       } catch (error) {
         failed.push({ number: chapterGroup.number, error });
-        addSummaryLine(modal, "fail", copy.failedChapter(chapterGroup.number, error.message || String(error)));
+        const errorText = copy.failedChapter(chapterGroup.number, error.message || String(error));
+        addSummaryLine(modal, "fail", errorText);
+        addConsoleLine(modal, "error", errorText);
       }
 
       setProgress(modal, {
@@ -337,17 +388,27 @@ async function runUpload({ modal, form, onSave }) {
         total: chaptersToUpload.length,
         text: copy.creating(index + 1, chaptersToUpload.length, chapterGroup.number),
       });
+      updateConsoleStats(modal, {
+        processed: index + 1,
+        total: chaptersToUpload.length,
+        ok: imported.length,
+        failed: failed.length,
+        skipped: skippedBeforeUpload.length,
+      });
     }
 
     if (!imported.length) {
+      addConsoleLine(modal, "error", copy.nothingImported());
       toast(copy.nothingImported(), "error");
       return false;
     }
 
     onSave({ imported, failed, conflictMode: settings.conflictMode });
+    addConsoleLine(modal, failed.length ? "warn" : "success", copy.done(imported.length));
     toast(copy.done(imported.length), "success");
     return true;
   } catch (error) {
+    addConsoleLine(modal, "error", error.message || String(error));
     toast(error.message || String(error), "error");
     return false;
   } finally {
@@ -449,6 +510,14 @@ export function showImgChestBatchUploadModal({ onSave }) {
               </div>
             </div>
             <div class="multi-chapter-bar" aria-hidden="true"><span data-imgchest-bar></span></div>
+            <div class="upload-console-head">
+              <div>
+                <strong>${copy.console()}</strong>
+                <p>${copy.consoleHint()}</p>
+              </div>
+              <span data-imgchest-console-stats>${copy.stats(0, 0, 0, 0, 0)}</span>
+            </div>
+            <div class="upload-console" data-imgchest-console></div>
             <div class="multi-chapter-summary" data-imgchest-summary></div>
           </section>
         </div>
