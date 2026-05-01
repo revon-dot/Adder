@@ -30,6 +30,22 @@ function normalizeChapterFolder(chapterNumber = "") {
   return clean.padStart(4, "0");
 }
 
+function encodePath(value = "") {
+  return String(value || "")
+    .split("/")
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join("/");
+}
+
+function encodeBranchName(value = "") {
+  return String(value || "main")
+    .split("/")
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join("/") || "main";
+}
+
 export function mangaFolderFromJsonName(fileName = "") {
   return slugifySegment(stripJsonExtension(fileName));
 }
@@ -50,21 +66,14 @@ export function buildGithubImagePath({ imagesRoot = DEFAULT_IMAGES_ROOT, jsonFil
 }
 
 export function buildRawGithubUrl({ owner = "", repo = "", branch = "main", path = "" } = {}) {
-  const encodedPath = String(path || "")
-    .split("/")
-    .filter(Boolean)
-    .map(encodeURIComponent)
-    .join("/");
+  const encodedPath = encodePath(path);
+  const encodedBranch = encodeBranchName(branch);
 
-  return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${encodedPath}`;
+  return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodedBranch}/${encodedPath}`;
 }
 
 export function buildGithubPagesUrl({ owner = "", repo = "", path = "" } = {}) {
-  const encodedPath = String(path || "")
-    .split("/")
-    .filter(Boolean)
-    .map(encodeURIComponent)
-    .join("/");
+  const encodedPath = encodePath(path);
 
   return `https://${encodeURIComponent(owner)}.github.io/${encodeURIComponent(repo)}/${encodedPath}`;
 }
