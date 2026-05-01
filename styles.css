@@ -177,6 +177,15 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 /* Lightweight editor list */
 .editor-panel, .chapter-manager, .chapter-table-wrap { box-shadow: none; backdrop-filter: none; }
 .editor-panel { background: rgba(21, 23, 29, 0.72); }
+.repository-sync-notice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-bottom: 18px; padding: 18px; border: 1px solid rgba(255, 204, 102, 0.42); border-radius: var(--radius); background: linear-gradient(135deg, rgba(255, 204, 102, 0.18), rgba(79, 140, 255, 0.08)), rgba(21, 23, 29, 0.92); box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 204, 102, 0.08) inset; }
+.repository-sync-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 999px; background: rgba(255, 204, 102, 0.2); color: #ffe5a3; border: 1px solid rgba(255, 204, 102, 0.36); font-weight: 950; font-size: 1.35rem; }
+.repository-sync-body { display: grid; gap: 6px; min-width: 0; }
+.repository-sync-body .kicker, .repository-sync-body h3, .repository-sync-body p { margin: 0; }
+.repository-sync-body h3 { color: #fff7df; }
+.repository-sync-body p { color: #ffe8ad; }
+.repository-sync-detail { color: var(--muted) !important; font-size: 0.9rem; overflow-wrap: anywhere; }
+.repository-sync-actions { display: flex; justify-content: flex-end; }
+.repository-sync-actions .btn { white-space: nowrap; }
 .editor-chapter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 16px 0 18px; }
 .editor-chapter-actions .btn { flex: 0 0 auto; }
 .chapter-manager { display: grid; gap: 12px; }
@@ -237,6 +246,9 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
   .imgchest-tools { grid-template-columns: 1fr; }
   .inline-tools { justify-content: stretch; }
   .inline-tools .btn { flex: 1 1 auto; }
+  .repository-sync-notice { grid-template-columns: 1fr; align-items: stretch; }
+  .repository-sync-icon { width: 36px; height: 36px; }
+  .repository-sync-actions, .repository-sync-actions .btn { width: 100%; }
   .chapter-toolbar-light { grid-template-columns: 1fr; }
   .chapter-toolbar-meta { justify-content: space-between; }
   .chapter-bulk-actions { align-items: stretch; }
