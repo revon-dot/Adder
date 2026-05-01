@@ -2,6 +2,7 @@ const DEFAULT_MAX_WIDTH = 1100;
 const DEFAULT_JPEG_QUALITY = 0.85;
 const DEFAULT_OUTPUT_EXTENSION = "jpg";
 const DEFAULT_OUTPUT_MIME_TYPE = "image/jpeg";
+const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 
 function toArray(files = []) {
   return Array.from(files || []);
@@ -58,6 +59,10 @@ async function blobToBase64(blob) {
   return readAsDataUrl(blob);
 }
 
+function shouldFillBackground(mimeType) {
+  return String(mimeType || "").toLowerCase() === "image/jpeg";
+}
+
 export function filterImageFiles(files = []) {
   return sortByName(toArray(files).filter(isImageFile));
 }
@@ -71,6 +76,7 @@ export async function processImageFile(file, options = {}) {
   const maxWidth = Number(options.maxWidth) || DEFAULT_MAX_WIDTH;
   const quality = Number.isFinite(Number(options.quality)) ? Number(options.quality) : DEFAULT_JPEG_QUALITY;
   const mimeType = options.mimeType || DEFAULT_OUTPUT_MIME_TYPE;
+  const backgroundColor = options.backgroundColor || DEFAULT_BACKGROUND_COLOR;
 
   const originalDataUrl = await readAsDataUrl(file);
   const image = await loadImage(originalDataUrl);
@@ -91,6 +97,11 @@ export async function processImageFile(file, options = {}) {
 
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas não disponível neste navegador.");
+
+  if (shouldFillBackground(mimeType)) {
+    context.fillStyle = backgroundColor;
+    context.fillRect(0, 0, width, height);
+  }
 
   context.drawImage(image, 0, 0, width, height);
 
@@ -161,4 +172,5 @@ export const imageProcessingDefaults = {
   quality: DEFAULT_JPEG_QUALITY,
   extension: DEFAULT_OUTPUT_EXTENSION,
   mimeType: DEFAULT_OUTPUT_MIME_TYPE,
+  backgroundColor: DEFAULT_BACKGROUND_COLOR,
 };
