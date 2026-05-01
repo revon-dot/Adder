@@ -3,7 +3,7 @@ import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
-import { processImageFiles, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
+import { processImageFiles, filterImageFiles, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
 import { buildGithubImageUploadItems, buildGithubImageFolder, githubImageDefaults } from "../github-image-links.js";
 import { normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
 
@@ -13,6 +13,7 @@ function label(pt, en) {
 
 const LARGE_SELECTION_BYTES = 250 * 1024 * 1024;
 const LARGE_SELECTION_COUNT = 120;
+const PREFERENCES_KEY = "adder-pages:github-image-upload-preferences";
 
 const copy = {
   button: () => label("Upload imagens GitHub", "GitHub image upload"),
@@ -32,12 +33,14 @@ const copy = {
   fileInputHint: () => label("Selecione as páginas do capítulo. O Adder ordena por nome e renomeia como 001.jpg, 002.jpg...", "Select the chapter pages. Adder sorts by name and renames them as 001.jpg, 002.jpg..."),
   selectionEmpty: () => label("Nenhuma imagem selecionada ainda.", "No images selected yet."),
   selectionSummary: (count, size) => label(`${count} imagens selecionadas · ${size} antes da compressão`, `${count} images selected · ${size} before compression`),
+  selectionOrder: (names, remaining) => label(`Ordem detectada: ${names}${remaining > 0 ? ` +${remaining} arquivo(s)` : ""}`, `Detected order: ${names}${remaining > 0 ? ` +${remaining} file(s)` : ""}`),
   selectionWarning: () => label("Seleção grande. O upload pode demorar e deixar o repositório pesado.", "Large selection. Upload may take a while and make the repository heavy."),
   confirmLargeSelection: (count, size) => label(`Você selecionou ${count} imagens (${size}) antes da compressão. Continuar mesmo assim?`, `You selected ${count} images (${size}) before compression. Continue anyway?`),
   conflictMode: () => label("Se o capítulo já existir no JSON", "If the chapter already exists in the JSON"),
   conflictCancel: () => label("Cancelar", "Cancel"),
   conflictReplace: () => label("Substituir capítulo", "Replace chapter"),
   conflictMerge: () => label("Substituir imagens do grupo", "Replace group images"),
+  preferencesHint: () => label("O Adder lembra pasta, largura, qualidade, tipo de link e modo de conflito neste navegador.", "Adder remembers folder, width, quality, link type, and conflict mode in this browser."),
   startUpload: () => label("Processar e enviar", "Process and upload"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
@@ -80,6 +83,28 @@ function getJsonFileName() {
   return state.current?.name || "manga.json";
 }
 
+function loadPreferences() {
+  try {
+    return JSON.parse(localStorage.getItem(PREFERENCES_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function savePreferences(form) {
+  try {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({
+      imagesRoot: String(form.imagesRoot?.value || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot,
+      maxWidth: String(form.maxWidth?.value || imageProcessingDefaults.maxWidth),
+      quality: String(form.quality?.value || 85),
+      linkMode: String(form.linkMode?.value || githubImageDefaults.linkMode),
+      conflictMode: String(form.conflictMode?.value || "cancel"),
+    }));
+  } catch {
+    // Ignore storage errors. Upload still works without saved preferences.
+  }
+}
+
 function selectedImageStats(form) {
   const files = Array.from(form.querySelector("input[name='images']")?.files || []);
   return {
@@ -120,7 +145,10 @@ function updateSelectionPreview(form) {
     return;
   }
 
-  preview.textContent = copy.selectionSummary(stats.count, formatBytes(stats.size));
+  const ordered = filterImageFiles(stats.files);
+  const names = ordered.slice(0, 5).map((file) => file.name).join(" → ");
+  const remaining = Math.max(0, ordered.length - 5);
+  preview.textContent = `${copy.selectionSummary(stats.count, formatBytes(stats.size))}\n${copy.selectionOrder(names, remaining)}`;
   preview.classList.toggle("warning", isLargeSelection(stats));
 }
 
@@ -214,6 +242,7 @@ async function getExistingFileSha(client, path) {
 async function runUpload({ modal, form, onSave }) {
   const settings = collectSettings(form);
   const stats = selectedImageStats(form);
+  savePreferences(form);
 
   if (!settings.number || !isValidChapterNumber(settings.number)) {
     toast(copy.invalidChapter(), "error");
@@ -356,8 +385,14 @@ async function runUpload({ modal, form, onSave }) {
 
 export function showGithubImageUploadModal({ onSave }) {
   const nextNumber = getNextChapterNumber();
+  const preferences = loadPreferences();
+  const imagesRoot = preferences.imagesRoot || githubImageDefaults.imagesRoot;
+  const maxWidth = preferences.maxWidth || imageProcessingDefaults.maxWidth;
+  const quality = preferences.quality || 85;
+  const linkMode = preferences.linkMode || githubImageDefaults.linkMode;
+  const conflictMode = preferences.conflictMode || "cancel";
   const initialDestination = buildGithubImageFolder({
-    imagesRoot: githubImageDefaults.imagesRoot,
+    imagesRoot,
     jsonFileName: getJsonFileName(),
     chapterNumber: nextNumber,
   });
@@ -390,7 +425,7 @@ export function showGithubImageUploadModal({ onSave }) {
             </label>
             <label class="field">
               <span>${copy.imagesRoot()}</span>
-              <input name="imagesRoot" value="${attr(githubImageDefaults.imagesRoot)}" />
+              <input name="imagesRoot" value="${attr(imagesRoot)}" />
             </label>
           </div>
 
@@ -408,11 +443,11 @@ export function showGithubImageUploadModal({ onSave }) {
           <div class="drawer-grid">
             <label class="field">
               <span>${copy.maxWidth()}</span>
-              <input name="maxWidth" type="number" min="100" step="50" value="${attr(imageProcessingDefaults.maxWidth)}" />
+              <input name="maxWidth" type="number" min="100" step="50" value="${attr(maxWidth)}" />
             </label>
             <label class="field">
               <span>${copy.quality()}</span>
-              <input name="quality" type="number" min="10" max="100" step="1" value="85" />
+              <input name="quality" type="number" min="10" max="100" step="1" value="${attr(quality)}" />
             </label>
           </div>
 
@@ -420,19 +455,20 @@ export function showGithubImageUploadModal({ onSave }) {
             <label class="field">
               <span>${copy.linkMode()}</span>
               <select name="linkMode">
-                <option value="raw" selected>${copy.rawMode()}</option>
-                <option value="pages">${copy.pagesMode()}</option>
+                <option value="raw" ${linkMode === "raw" ? "selected" : ""}>${copy.rawMode()}</option>
+                <option value="pages" ${linkMode === "pages" ? "selected" : ""}>${copy.pagesMode()}</option>
               </select>
             </label>
             <label class="field">
               <span>${copy.conflictMode()}</span>
               <select name="conflictMode">
-                <option value="cancel" selected>${copy.conflictCancel()}</option>
-                <option value="replace">${copy.conflictReplace()}</option>
-                <option value="merge">${copy.conflictMerge()}</option>
+                <option value="cancel" ${conflictMode === "cancel" ? "selected" : ""}>${copy.conflictCancel()}</option>
+                <option value="replace" ${conflictMode === "replace" ? "selected" : ""}>${copy.conflictReplace()}</option>
+                <option value="merge" ${conflictMode === "merge" ? "selected" : ""}>${copy.conflictMerge()}</option>
               </select>
             </label>
           </div>
+          <p class="hint">${copy.preferencesHint()}</p>
 
           <label class="field">
             <span>${copy.fileInput()}</span>
@@ -469,6 +505,10 @@ export function showGithubImageUploadModal({ onSave }) {
   document.body.appendChild(modal);
   const form = modal.querySelector("#github-image-upload-form");
   const close = () => modal.remove();
+  const saveAndPreview = () => {
+    savePreferences(form);
+    updateDestinationPreview(form);
+  };
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
   form.number?.addEventListener("input", () => updateDestinationPreview(form));
@@ -476,7 +516,11 @@ export function showGithubImageUploadModal({ onSave }) {
     form.number.value = normalizeChapterNumber(form.number.value);
     updateDestinationPreview(form);
   });
-  form.imagesRoot?.addEventListener("input", () => updateDestinationPreview(form));
+  form.imagesRoot?.addEventListener("input", saveAndPreview);
+  form.maxWidth?.addEventListener("input", () => savePreferences(form));
+  form.quality?.addEventListener("input", () => savePreferences(form));
+  form.linkMode?.addEventListener("change", () => savePreferences(form));
+  form.conflictMode?.addEventListener("change", () => savePreferences(form));
   form.images?.addEventListener("change", () => updateSelectionPreview(form));
 
   form.addEventListener("submit", async (event) => {
