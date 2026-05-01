@@ -1,8 +1,14 @@
+import { state } from "./state.js";
+
 const API_BASE = "https://api.imgchest.com/v1";
 const POST_URL_BASE = "https://imgchest.com/p";
 const RATE_LIMIT_BACKOFF_MS = [60000, 90000, 120000, 180000, 300000];
 
 let imgChestCooldownUntil = 0;
+
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
 
 export const imgChestUploadDefaults = {
   privacy: "hidden",
@@ -213,7 +219,10 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
     } catch (error) {
       const message = String(error?.message || error || "").toLowerCase();
       if (message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed")) {
-        throw new Error("O navegador bloqueou ou não conseguiu acessar a API do ImgChest. Pode ser CORS, token inválido ou falha de rede.");
+        throw new Error(label(
+          "O navegador bloqueou ou não conseguiu acessar a API do ImgChest. Pode ser CORS, token inválido ou falha de rede.",
+          "The browser blocked or could not access the ImgChest API. This may be CORS, an invalid token, or a network failure.",
+        ));
       }
       throw error;
     }
@@ -239,7 +248,7 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
 
     if (!response.ok) {
       throw decorateHttpError(
-        new Error(errorMessageFromPayload(payload, `ImgChest API retornou HTTP ${response.status}.`)),
+        new Error(errorMessageFromPayload(payload, label(`ImgChest API retornou HTTP ${response.status}.`, `ImgChest API returned HTTP ${response.status}.`))),
         response,
         payload,
       );
@@ -250,7 +259,10 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
   }
 
   setSharedImgChestCooldown(maxRateLimitWaitMs);
-  const error = new Error(`ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). Tente novamente mais tarde ou reduza o tamanho do lote/delay.`);
+  const error = new Error(label(
+    `ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). Tente novamente mais tarde ou reduza o tamanho do lote/delay.`,
+    `ImgChest API stayed rate-limited after ${maxRetries} attempt(s). Try again later or reduce the batch size/delay.`,
+  ));
   error.status = 429;
   error.rateLimited = true;
   error.rateLimitInfo = lastRateLimitInfo;
@@ -264,7 +276,7 @@ function extractPostData(payload = {}) {
 export function extractImgChestPostIdFromPayload(payload = {}) {
   const data = extractPostData(payload);
   const id = data.id || data.post_id || payload.id || payload.post_id;
-  if (!id) throw new Error("Não consegui encontrar o ID do post na resposta do ImgChest.");
+  if (!id) throw new Error(label("Não consegui encontrar o ID do post na resposta do ImgChest.", "Could not find the post ID in the ImgChest response."));
   return String(id);
 }
 
@@ -311,8 +323,8 @@ export function extractImgChestImageUrlsFromPayload(payload = {}) {
 
 export async function createImgChestPost({ token, title, images, privacy, anonymous = false, nsfw = false, retry = {} } = {}) {
   const clean = cleanToken(token);
-  if (!clean) throw new Error("Informe um ImgChest API token.");
-  if (!Array.isArray(images) || !images.length) throw new Error("Nenhuma imagem para enviar ao ImgChest.");
+  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
+  if (!Array.isArray(images) || !images.length) throw new Error(label("Nenhuma imagem para enviar ao ImgChest.", "No images to upload to ImgChest."));
 
   return requestWithImgChestRetry(
     () => fetch(`${API_BASE}/post`, {
@@ -331,8 +343,8 @@ export async function createImgChestPost({ token, title, images, privacy, anonym
 
 export async function addImagesToImgChestPost({ token, postId, images, retry = {} } = {}) {
   const clean = cleanToken(token);
-  if (!clean) throw new Error("Informe um ImgChest API token.");
-  if (!postId) throw new Error("ID do post ImgChest ausente.");
+  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
+  if (!postId) throw new Error(label("ID do post ImgChest ausente.", "Missing ImgChest post ID."));
   if (!Array.isArray(images) || !images.length) return {};
 
   return requestWithImgChestRetry(
@@ -347,8 +359,8 @@ export async function addImagesToImgChestPost({ token, postId, images, retry = {
 
 export async function getImgChestPost({ token, postId, retry = {} } = {}) {
   const clean = cleanToken(token);
-  if (!clean) throw new Error("Informe um ImgChest API token.");
-  if (!postId) throw new Error("ID do post ImgChest ausente.");
+  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
+  if (!postId) throw new Error(label("ID do post ImgChest ausente.", "Missing ImgChest post ID."));
 
   return requestWithImgChestRetry(
     () => fetch(`${API_BASE}/post/${encodeURIComponent(postId)}`, {
@@ -380,7 +392,7 @@ export async function uploadChapterToImgChest({
   retry = {},
   onStatus,
 } = {}) {
-  if (!chapterGroup?.files?.length) throw new Error(`Capítulo ${chapterGroup?.number || "?"}: nenhuma imagem encontrada.`);
+  if (!chapterGroup?.files?.length) throw new Error(label(`Capítulo ${chapterGroup?.number || "?"}: nenhuma imagem encontrada.`, `Chapter ${chapterGroup?.number || "?"}: no images found.`));
 
   const batches = chunkList(chapterGroup.files, batchSize);
   const title = buildImgChestPostTitle({
@@ -424,11 +436,17 @@ export async function uploadChapterToImgChest({
 
   const finalUrls = [...new Set(imageUrls.filter(Boolean))];
   if (!finalUrls.length) {
-    throw new Error(`Capítulo ${chapterGroup.number}: upload criado, mas a API não retornou links de imagens.`);
+    throw new Error(label(
+      `Capítulo ${chapterGroup.number}: upload criado, mas a API não retornou links de imagens.`,
+      `Chapter ${chapterGroup.number}: upload was created, but the API did not return image links.`,
+    ));
   }
 
   if (finalUrls.length !== expectedCount) {
-    throw new Error(`Capítulo ${chapterGroup.number}: a API retornou ${finalUrls.length} link(s), mas eram esperadas ${expectedCount} imagem(ns).`);
+    throw new Error(label(
+      `Capítulo ${chapterGroup.number}: a API retornou ${finalUrls.length} link(s), mas eram esperadas ${expectedCount} imagem(ns).`,
+      `Chapter ${chapterGroup.number}: the API returned ${finalUrls.length} link(s), but ${expectedCount} image(s) were expected.`,
+    ));
   }
 
   return {
