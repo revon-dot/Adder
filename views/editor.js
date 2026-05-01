@@ -23,6 +23,12 @@ function editorSnapshot(fileName, manifest) {
   });
 }
 
+function unsavedUploadJsonWarning() {
+  return document.documentElement.lang === "en"
+    ? "Images were uploaded, but the JSON is NOT saved yet. Click Save to GitHub."
+    : "Imagens enviadas, mas o JSON ainda NÃO foi salvo. Clique em Salvar no GitHub.";
+}
+
 function syncAutoFileName() {
   if (!state.current?.isNew) return;
   const titleInput = document.querySelector("input[name='title']");
@@ -137,6 +143,7 @@ function addGithubImageChapterWithDrawer(navigateToDashboard) {
       syncCurrentFromForm();
       upsertUploadedChapter({ number, chapter, conflictMode });
       renderEditor(navigateToDashboard);
+      toast(unsavedUploadJsonWarning(), "warning");
     },
   });
 }
@@ -150,6 +157,7 @@ function addGithubFolderChaptersWithDrawer(navigateToDashboard) {
         upsertUploadedChapter({ number, chapter, conflictMode });
       });
       renderEditor(navigateToDashboard);
+      toast(unsavedUploadJsonWarning(), "warning");
     },
   });
 }
