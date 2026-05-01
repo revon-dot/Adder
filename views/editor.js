@@ -9,7 +9,6 @@ import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
-import { showMultiChapterUploadModal } from "./multi-chapter-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 
@@ -97,20 +96,6 @@ function addChapterWithDrawer(navigateToDashboard) {
   });
 }
 
-function addMultipleChaptersWithDrawer(navigateToDashboard) {
-  syncCurrentFromForm();
-  showMultiChapterUploadModal({
-    onSave: ({ imported }) => {
-      syncCurrentFromForm();
-      if (!state.current.data.chapters) state.current.data.chapters = {};
-      imported.forEach(({ number, chapter }) => {
-        state.current.data.chapters[number] = chapter;
-      });
-      renderEditor(navigateToDashboard);
-    },
-  });
-}
-
 async function deleteCurrentWork(navigateToDashboard) {
   if (!state.current || state.current.isNew || !state.current.path || !state.current.sha) return;
   const ok = confirm(t("deleteWorkConfirm", { name: state.current.name || state.current.path }));
@@ -192,7 +177,6 @@ function bindEditorEvents(navigateToDashboard) {
 
   document.querySelector("#save-btn")?.addEventListener("click", () => saveEditorFromButton(navigateToDashboard));
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
-  document.querySelector("#multi-chapter-upload-btn")?.addEventListener("click", () => addMultipleChaptersWithDrawer(navigateToDashboard));
 
   const titleInput = document.querySelector("input[name='title']");
   titleInput?.addEventListener("input", () => {
