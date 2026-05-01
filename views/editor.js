@@ -9,7 +9,6 @@ import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
-import { showImgChestBatchUploadModal } from "./imgchest-batch-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 
@@ -124,18 +123,23 @@ function addChapterWithDrawer(navigateToDashboard) {
   });
 }
 
-function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
-  syncCurrentFromForm();
-  showImgChestBatchUploadModal({
-    onSave: ({ imported, conflictMode }) => {
-      syncCurrentFromForm();
-      imported.forEach(({ number, chapter }) => {
-        upsertUploadedChapter({ number, chapter, conflictMode });
-      });
-      renderEditor(navigateToDashboard);
-      toast(unsavedUploadJsonWarning(), "warning");
-    },
-  });
+async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
+  try {
+    syncCurrentFromForm();
+    const { showImgChestBatchUploadModal } = await import("./imgchest-batch-upload-modal.js");
+    showImgChestBatchUploadModal({
+      onSave: ({ imported, conflictMode }) => {
+        syncCurrentFromForm();
+        imported.forEach(({ number, chapter }) => {
+          upsertUploadedChapter({ number, chapter, conflictMode });
+        });
+        renderEditor(navigateToDashboard);
+        toast(unsavedUploadJsonWarning(), "warning");
+      },
+    });
+  } catch (error) {
+    toast(errorMessage(error), "error");
+  }
 }
 
 async function deleteCurrentWork(navigateToDashboard) {
