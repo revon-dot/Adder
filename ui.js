@@ -2,6 +2,10 @@ import { state } from "./state.js";
 
 const app = document.querySelector("#app");
 
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
+
 export function render(markup) {
   app.innerHTML = `<div class="app-shell">${markup}</div>`;
 }
@@ -29,11 +33,11 @@ export function toast(message, type = "") {
 }
 
 export function errorMessage(error) {
-  if (!error) return "Erro desconhecido.";
-  if (error.status === 401) return "Token inválido ou expirado. Confira o Personal Access Token.";
-  if (error.status === 403) return "Acesso negado. Confira se o token tem permissão de leitura/escrita no repositório.";
-  if (error.status === 404) return "Repositório, branch, pasta ou arquivo não encontrado.";
-  if (error.status === 409) return "Conflito ao salvar. Atualize a lista e tente novamente.";
+  if (!error) return label("Erro desconhecido.", "Unknown error.");
+  if (error.status === 401) return label("Token inválido ou expirado. Confira o Personal Access Token.", "Invalid or expired token. Check the Personal Access Token.");
+  if (error.status === 403) return label("Acesso negado. Confira se o token tem permissão de leitura/escrita no repositório.", "Access denied. Check whether the token has read/write permission for the repository.");
+  if (error.status === 404) return label("Repositório, branch, pasta ou arquivo não encontrado.", "Repository, branch, folder, or file not found.");
+  if (error.status === 409) return label("Conflito ao salvar. Atualize a lista e tente novamente.", "Save conflict. Refresh the list and try again.");
   return error.message || String(error);
 }
 
