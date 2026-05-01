@@ -5,3 +5,13 @@ label.field:has(input[name="batchSize"]),
 label.field:has(input[name="delayMs"]) {
   display: none;
 }
+
+/* Buttons use .btn { display: inline-flex }, which can override the native
+   hidden attribute in the cascade. Keep result-only actions invisible until
+   the upload JS explicitly removes hidden at the end of processing. */
+[data-save-github][hidden],
+[data-review-files][hidden],
+[data-start-upload][hidden],
+[data-close-modal-footer][hidden] {
+  display: none !important;
+}
