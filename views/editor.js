@@ -166,11 +166,20 @@ async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
     syncCurrentFromForm();
     const { showImgChestBatchUploadModal } = await import("./imgchest-batch-upload-modal.js");
     showImgChestBatchUploadModal({
-      onSave: ({ imported, conflictMode }) => {
-        syncCurrentFromForm();
-        imported.forEach(({ number, chapter }) => {
-          upsertUploadedChapter({ number, chapter, conflictMode });
-        });
+      onChapterUploaded: ({ number, chapter, conflictMode }) => {
+        // Keep the drawer/console open while still making the editor state the
+        // source of truth chapter by chapter. This lets later subfolders skip
+        // chapters that were just added during the same upload session.
+        upsertUploadedChapter({ number, chapter, conflictMode });
+        updateBeforeUnloadGuard();
+      },
+      onSave: ({ imported, conflictMode, alreadyApplied }) => {
+        if (!alreadyApplied) {
+          syncCurrentFromForm();
+          imported.forEach(({ number, chapter }) => {
+            upsertUploadedChapter({ number, chapter, conflictMode });
+          });
+        }
         renderEditor(navigateToDashboard);
         toast(unsavedUploadJsonWarning(), "warning");
       },
