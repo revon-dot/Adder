@@ -9,7 +9,43 @@ const guardedUploadFormIds = new Set([
   "github-folder-upload-form",
 ]);
 
+const uploadPreferenceKeys = new Set([
+  "adder-pages:github-image-upload-preferences",
+  "adder-pages:github-folder-upload-preferences",
+]);
+
+const uploadPreferencesVersion = 1;
 const uploadImageAccept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+
+function normalizeUploadPreferenceValue(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return value;
+
+    return JSON.stringify({
+      version: uploadPreferencesVersion,
+      ...parsed,
+    });
+  } catch {
+    return value;
+  }
+}
+
+function installUploadPreferenceVersioning() {
+  uploadPreferenceKeys.forEach((key) => {
+    const current = localStorage.getItem(key);
+    if (current) localStorage.setItem(key, normalizeUploadPreferenceValue(current));
+  });
+
+  const originalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function setItemWithUploadPreferenceVersion(key, value) {
+    const nextValue = uploadPreferenceKeys.has(String(key))
+      ? normalizeUploadPreferenceValue(value)
+      : value;
+
+    return originalSetItem.call(this, key, nextValue);
+  };
+}
 
 function normalizeUploadFileInputs(root = document) {
   root.querySelectorAll?.("#github-image-upload-form input[type='file'], #github-folder-upload-form input[type='file']").forEach((input) => {
@@ -99,6 +135,7 @@ function navigateToEditor(file) {
 
 // Initial render
 try {
+  installUploadPreferenceVersioning();
   installDuplicateSubmitGuard();
   installUploadFileInputNormalizer();
   saveLanguage(loadSavedLanguage());
