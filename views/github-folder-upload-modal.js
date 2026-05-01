@@ -3,8 +3,8 @@ import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
-import { processImageFiles, filterImageFiles, formatBytes, imageProcessingDefaults } from "../image-processing.js";
-import { buildGithubImageUploadItems, buildGithubImageFolder, githubImageDefaults } from "../github-image-links.js";
+import { filterImageFiles, formatBytes } from "../image-processing.js";
+import { buildGithubImageFolder, buildGithubImagePath, buildGithubImageUrl, githubImageDefaults } from "../github-image-links.js";
 import { extractChapterNumberFromTitle, normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
 
 const BATCH_PREFERENCES_KEY = "adder-pages:github-folder-upload-preferences";
@@ -18,18 +18,16 @@ function label(pt, en) {
 
 const copy = {
   button: () => label("Upload lote local", "Local batch upload"),
-  kicker: () => label("Upload local em lote", "Local batch upload"),
+  kicker: () => label("Upload rápido local", "Local fast upload"),
   title: () => label("Enviar várias pastas para o GitHub", "Upload multiple folders to GitHub"),
   folderInput: () => label("Pasta com capítulos", "Folder with chapters"),
-  folderHint: () => label("Selecione uma pasta que contenha subpastas de capítulos, como 0085/, 0086/, 0087/. No Chrome, use o seletor de pasta.", "Select a folder containing chapter subfolders, such as 0085/, 0086/, 0087/. In Chrome, use the folder picker."),
+  folderHint: () => label("Selecione uma pasta que contenha subpastas de capítulos, como 0085/, 0086/, 0087/. O Adder envia as imagens originais, sem converter ou redimensionar.", "Select a folder containing chapter subfolders, such as 0085/, 0086/, 0087/. Adder uploads the original images without converting or resizing."),
   imagesRoot: () => label("Pasta base das imagens", "Images root folder"),
-  maxWidth: () => label("Largura máxima", "Max width"),
-  quality: () => label("Qualidade JPG", "JPG quality"),
   linkMode: () => label("Tipo de link", "Link type"),
   rawMode: () => label("Raw GitHub", "Raw GitHub"),
   pagesMode: () => label("GitHub Pages", "GitHub Pages"),
   pagesWarning: () => label("Use GitHub Pages apenas se o repositório tiver Pages publicado e público. Se estiver em dúvida, use Raw GitHub.", "Use GitHub Pages only if this repository has public Pages enabled. If unsure, use Raw GitHub."),
-  conflictMode: () => label("Se o capítulo já existir no JSON", "If the chapter already exists in the JSON"),
+  conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
   conflictCancel: () => label("Cancelar tudo", "Cancel all"),
   conflictSkip: () => label("Pular existentes", "Skip existing"),
   conflictReplace: () => label("Substituir capítulo", "Replace chapter"),
@@ -37,7 +35,7 @@ const copy = {
   group: () => label("Grupo", "Group"),
   titleTemplate: () => label("Título automático", "Automatic title"),
   titleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
-  startUpload: () => label("Processar e enviar lote", "Process and upload batch"),
+  startUpload: () => label("Enviar lote", "Upload batch"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
   noFiles: () => label("Selecione uma pasta com imagens.", "Select a folder with images."),
@@ -49,14 +47,13 @@ const copy = {
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
   duplicateChapter: (number, folders) => label(`Capítulo ${number} aparece em mais de uma pasta: ${folders.join(" | ")}`, `Chapter ${number} appears in more than one folder: ${folders.join(" | ")}`),
   duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
-  largeBatchWarning: () => label("Lote grande. O upload pode demorar, gerar muitos commits e deixar o repositório pesado.", "Large batch. Upload may take a while, create many commits, and make the repository heavy."),
-  confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size} antes da compressão. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size} before compression. Continue?`),
+  largeBatchWarning: () => label("Lote grande. O upload pode demorar e deixar o repositório pesado.", "Large batch. Upload may take a while and make the repository heavy."),
+  confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size}. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size}. Continue?`),
   chapterExists: (number) => label(`Capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
   confirmReplace: (count) => label(`${count} capítulo(s) existente(s) serão substituídos/mesclados no JSON. Continuar?`, `${count} existing chapter(s) will be replaced/merged in the JSON. Continue?`),
   preparing: () => label("Preparando lote...", "Preparing batch..."),
   checkingFolder: (current, total, number) => label(`Verificando pasta do capítulo ${number} (${current}/${total})`, `Checking chapter ${number} folder (${current}/${total})`),
-  processingChapter: (current, total, number) => label(`Processando capítulo ${number} (${current}/${total})`, `Processing chapter ${number} (${current}/${total})`),
-  checkingChapter: (current, total, number) => label(`Preparando sobrescrita do capítulo ${number} (${current}/${total})`, `Preparing overwrite for chapter ${number} (${current}/${total})`),
+  readingChapter: (current, total, number) => label(`Lendo imagens do capítulo ${number} (${current}/${total})`, `Reading chapter ${number} images (${current}/${total})`),
   uploadingChapter: (current, total, number) => label(`Enviando capítulo ${number} (${current}/${total})`, `Uploading chapter ${number} (${current}/${total})`),
   existingFolder: (number, count) => label(`Capítulo ${number}: pasta existente encontrada com ${count} arquivo(s).`, `Chapter ${number}: existing folder found with ${count} file(s).`),
   confirmOverwriteFolder: (number, count) => label(`Capítulo ${number}: a pasta já existe no GitHub com ${count} arquivo(s). Continuar e sobrescrever arquivos com o mesmo nome?`, `Chapter ${number}: the folder already exists on GitHub with ${count} file(s). Continue and overwrite files with the same name?`),
@@ -65,7 +62,8 @@ const copy = {
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
   done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
-  preferencesHint: () => label("O Adder lembra pasta base, largura, qualidade, tipo de link e modo de conflito neste navegador.", "Adder remembers root folder, width, quality, link type, and conflict mode in this browser."),
+  preferencesHint: () => label("O Adder lembra pasta base, tipo de link e modo de conflito neste navegador.", "Adder remembers root folder, link type, and conflict mode in this browser."),
+  fastModeHint: () => label("Modo rápido: as imagens são enviadas no formato original. O Adder só renomeia para 001.ext, 002.ext, 003.ext...", "Fast mode: images are uploaded in their original format. Adder only renames them to 001.ext, 002.ext, 003.ext..."),
   summary: () => label("Resumo", "Summary"),
 };
 
@@ -81,8 +79,6 @@ function savePreferences(form) {
   try {
     localStorage.setItem(BATCH_PREFERENCES_KEY, JSON.stringify({
       imagesRoot: String(form.imagesRoot?.value || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot,
-      maxWidth: String(form.maxWidth?.value || imageProcessingDefaults.maxWidth),
-      quality: String(form.quality?.value || 85),
       linkMode: String(form.linkMode?.value || githubImageDefaults.linkMode),
       conflictMode: String(form.conflictMode?.value || "skip"),
     }));
@@ -247,9 +243,6 @@ function disableForm(form, disabled) {
 
 function collectSettings(form) {
   const formData = new FormData(form);
-  const qualityPercent = Number(formData.get("quality") || 85);
-  const quality = Math.min(1, Math.max(0.1, qualityPercent / 100));
-  const maxWidth = Math.max(100, Number(formData.get("maxWidth") || imageProcessingDefaults.maxWidth));
 
   return {
     groupName: String(formData.get("groupName") || "").trim(),
@@ -257,8 +250,6 @@ function collectSettings(form) {
     imagesRoot: String(formData.get("imagesRoot") || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot,
     conflictMode: String(formData.get("conflictMode") || "skip"),
     linkMode: String(formData.get("linkMode") || githubImageDefaults.linkMode),
-    maxWidth,
-    quality,
   };
 }
 
@@ -303,8 +294,70 @@ async function getExistingFolderFiles(client, folderPath) {
   }
 }
 
-async function uploadChapter({ modal, client, chapterGroup, settings, index, total }) {
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Não foi possível ler a imagem."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function fileExtension(file) {
+  const fromName = String(file?.name || "").split(".").pop()?.toLowerCase() || "";
+  if (fromName && fromName !== String(file?.name || "").toLowerCase()) return fromName;
+
+  const mime = String(file?.type || "").toLowerCase();
+  if (mime === "image/jpeg") return "jpg";
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  if (mime === "image/gif") return "gif";
+  if (mime === "image/avif") return "avif";
+  return "img";
+}
+
+function renamedImageFileName(index, total, file) {
+  const width = Math.max(3, String(total).length);
+  return `${String(index + 1).padStart(width, "0")}.${fileExtension(file)}`;
+}
+
+async function buildFastUploadItems({ files, settings, chapterNumber, existingFolder }) {
+  const images = filterImageFiles(files);
+  const total = images.length;
   const jsonFileName = getJsonFileName();
+  const items = [];
+
+  for (let index = 0; index < images.length; index += 1) {
+    const file = images[index];
+    const fileName = renamedImageFileName(index, total, file);
+    const path = buildGithubImagePath({
+      imagesRoot: settings.imagesRoot,
+      jsonFileName,
+      chapterNumber,
+      fileName,
+    });
+
+    items.push({
+      originalName: file.name,
+      fileName,
+      size: file.size,
+      base64DataUrl: await readAsDataUrl(file),
+      path,
+      sha: existingFolder.fileShas.get(fileName) || null,
+      url: buildGithubImageUrl({
+        owner: state.config?.owner,
+        repo: state.config?.repo,
+        branch: state.config?.branch,
+        path,
+        mode: settings.linkMode,
+      }),
+    });
+  }
+
+  return items;
+}
+
+async function uploadChapter({ modal, client, chapterGroup, settings, index, total }) {
   const folder = chapterFolderForGroup(chapterGroup, settings);
 
   setProgress(modal, {
@@ -336,25 +389,15 @@ async function uploadChapter({ modal, client, chapterGroup, settings, index, tot
   setProgress(modal, {
     done: index * 3 + 1,
     total: total * 3,
-    text: copy.processingChapter(index + 1, total, chapterGroup.number),
+    text: copy.readingChapter(index + 1, total, chapterGroup.number),
   });
 
-  const processed = await processImageFiles(chapterGroup.files, {
-    maxWidth: settings.maxWidth,
-    quality: settings.quality,
-  });
-
-  const items = buildGithubImageUploadItems({
-    config: state.config,
-    jsonFileName,
+  const items = await buildFastUploadItems({
+    files: chapterGroup.files,
+    settings,
     chapterNumber: chapterGroup.number,
-    images: processed,
-    imagesRoot: settings.imagesRoot,
-    linkMode: settings.linkMode,
-  }).map((item) => ({
-    ...item,
-    sha: existingFolder.fileShas.get(item.fileName) || null,
-  }));
+    existingFolder,
+  });
 
   setProgress(modal, {
     done: index * 3 + 2,
@@ -479,8 +522,6 @@ async function runUpload({ modal, form, onSave }) {
 export function showGithubFolderUploadModal({ onSave }) {
   const preferences = loadPreferences();
   const imagesRoot = preferences.imagesRoot || githubImageDefaults.imagesRoot;
-  const maxWidth = preferences.maxWidth || imageProcessingDefaults.maxWidth;
-  const quality = preferences.quality || 85;
   const linkMode = preferences.linkMode || githubImageDefaults.linkMode;
   const conflictMode = preferences.conflictMode || "skip";
   const modal = document.createElement("div");
@@ -507,6 +548,11 @@ export function showGithubFolderUploadModal({ onSave }) {
             <strong data-folder-upload-selection>${copy.selectionEmpty()}</strong>
           </div>
 
+          <div class="notice">
+            <strong>${label("Modo rápido", "Fast mode")}</strong>
+            <p class="hint">${copy.fastModeHint()}</p>
+          </div>
+
           <div class="drawer-grid chapter-meta-grid">
             <label class="field">
               <span>${copy.imagesRoot()}</span>
@@ -515,14 +561,6 @@ export function showGithubFolderUploadModal({ onSave }) {
             <label class="field">
               <span>${copy.group()}</span>
               <input name="groupName" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
-            </label>
-            <label class="field">
-              <span>${copy.maxWidth()}</span>
-              <input name="maxWidth" type="number" min="100" step="50" value="${attr(maxWidth)}" />
-            </label>
-            <label class="field">
-              <span>${copy.quality()}</span>
-              <input name="quality" type="number" min="10" max="100" step="1" value="${attr(quality)}" />
             </label>
           </div>
 
@@ -584,8 +622,6 @@ export function showGithubFolderUploadModal({ onSave }) {
     remember();
     updateSelectionPreview(form);
   });
-  form.maxWidth?.addEventListener("input", remember);
-  form.quality?.addEventListener("input", remember);
   form.linkMode?.addEventListener("change", () => {
     remember();
     updatePagesWarning(form);
