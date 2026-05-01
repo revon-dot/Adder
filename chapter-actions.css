@@ -5,13 +5,16 @@
 }
 
 .chapter-action-group {
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
   align-content: flex-start;
   gap: 9px;
-  width: fit-content;
+  inline-size: max-content;
+  width: max-content;
   max-width: 100%;
+  min-width: 0;
   min-height: 0;
   padding: 10px 12px;
   border: 1px solid var(--line-soft);
@@ -19,8 +22,17 @@
   background: rgba(255, 255, 255, 0.025);
 }
 
+.chapter-action-group:has(#add-chapter-btn) {
+  max-width: max-content;
+}
+
+.chapter-action-group:has(#imgchest-batch-upload-btn),
+.chapter-action-group:has(#multi-chapter-import-btn) {
+  max-width: min(100%, max-content);
+}
+
 .chapter-action-label {
-  width: 100%;
+  flex: 0 0 100%;
   color: var(--muted-2);
   font-size: 0.76rem;
   font-weight: 850;
@@ -73,10 +85,15 @@
     align-items: stretch;
   }
 
-  .chapter-action-group {
+  .chapter-action-group,
+  .chapter-action-group:has(#add-chapter-btn),
+  .chapter-action-group:has(#imgchest-batch-upload-btn),
+  .chapter-action-group:has(#multi-chapter-import-btn) {
     display: grid;
     grid-template-columns: 1fr;
+    inline-size: auto;
     width: 100%;
+    max-width: 100%;
   }
 
   .chapter-action-group .btn {
