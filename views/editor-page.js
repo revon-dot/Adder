@@ -28,6 +28,40 @@ function folderUploadButtonAttrs() {
   return `disabled aria-disabled="true" title="${attr(label("Seu navegador não suporta seleção de pastas. Use Chrome/Edge ou o upload individual.", "Your browser does not support folder selection. Use Chrome/Edge or single upload."))}"`;
 }
 
+function renderRepositorySyncNotice(current) {
+  const sync = current?.repositorySync;
+  const count = Number(sync?.missingChaptersAdded) || 0;
+  if (!count) return "";
+
+  const chapters = Array.isArray(sync?.chapters) ? sync.chapters.join(", ") : "";
+  const title = label(
+    `${count} capítulo(s) foram adicionados ao JSON`,
+    `${count} chapter(s) were added to the JSON`,
+  );
+  const message = label(
+    "O Adder encontrou pastas de capítulos no repositório que ainda não estavam no JSON desta obra. Eles já aparecem na tela, mas ainda não foram gravados no arquivo.",
+    "Adder found chapter folders in the repository that were not in this work's JSON yet. They are already visible on screen, but have not been written to the file yet.",
+  );
+  const detail = chapters
+    ? label(`Capítulos encontrados: ${chapters}`, `Found chapters: ${chapters}`)
+    : "";
+
+  return `
+    <section class="repository-sync-notice" role="alert">
+      <div class="repository-sync-icon" aria-hidden="true">!</div>
+      <div class="repository-sync-body">
+        <p class="kicker">${label("Sincronização necessária", "Sync needed")}</p>
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        ${detail ? `<p class="repository-sync-detail">${escapeHtml(detail)}</p>` : ""}
+      </div>
+      <div class="repository-sync-actions">
+        <button class="btn primary" type="button" id="repository-sync-save-btn">${t("saveToGithub")}</button>
+      </div>
+    </section>
+  `;
+}
+
 function renderSavedLinks(current) {
   if (current.isNew || !current.path) return "";
   const cubariUrl = cubariUrlForPath(current.path);
@@ -72,6 +106,8 @@ export function renderEditorPage(current, manifest) {
     </header>
     
     <section class="panel editor-panel">
+      ${renderRepositorySyncNotice(current)}
+
       <form id="editor-form" class="form-grid editor-form-block">
         <div class="field group editor-main-fields">
           <label class="field">
