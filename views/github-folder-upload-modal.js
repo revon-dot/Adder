@@ -360,22 +360,22 @@ async function runUpload({ modal, form, onSave }) {
 
   if (!stats.files.length) {
     toast(copy.noFiles(), "error");
-    return;
+    return false;
   }
 
   if (!stats.chapters.length) {
     toast(copy.noChapters(), "error");
-    return;
+    return false;
   }
 
   if (stats.duplicates.length) {
     toast(copy.duplicateBlocked(), "error");
-    return;
+    return false;
   }
 
   if (isLargeBatch(stats)) {
     const ok = confirm(copy.confirmLargeBatch(stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
-    if (!ok) return;
+    if (!ok) return false;
   }
 
   const existing = state.current?.data?.chapters || {};
@@ -383,12 +383,12 @@ async function runUpload({ modal, form, onSave }) {
 
   if (existingChapters.length && settings.conflictMode === "cancel") {
     toast(copy.chapterExists(existingChapters.map((chapter) => chapter.number).join(", ")), "error");
-    return;
+    return false;
   }
 
   if (existingChapters.length && ["replace", "merge"].includes(settings.conflictMode)) {
     const ok = confirm(copy.confirmReplace(existingChapters.length));
-    if (!ok) return;
+    if (!ok) return false;
   }
 
   const chaptersToUpload = settings.conflictMode === "skip"
@@ -397,7 +397,7 @@ async function runUpload({ modal, form, onSave }) {
 
   if (!chaptersToUpload.length) {
     toast(label("Todos os capítulos detectados já existem e foram pulados.", "All detected chapters already exist and were skipped."), "error");
-    return;
+    return false;
   }
 
   const progress = modal.querySelector("[data-folder-upload-progress]");
@@ -428,14 +428,16 @@ async function runUpload({ modal, form, onSave }) {
 
     if (!imported.length) {
       toast(label("Nenhum capítulo foi importado.", "No chapters were imported."), "error");
-      return;
+      return false;
     }
 
     onSave({ imported, failed, conflictMode: settings.conflictMode });
     setProgress(modal, { done: chaptersToUpload.length * 3, total: chaptersToUpload.length * 3, text: copy.done(imported.length) });
     toast(copy.done(imported.length), "success");
+    return true;
   } catch (error) {
     toast(error.message || String(error), "error");
+    return false;
   } finally {
     setBusy(false);
     disableForm(form, false);
@@ -561,7 +563,8 @@ export function showGithubFolderUploadModal({ onSave }) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await runUpload({ modal, form, onSave });
+    const uploaded = await runUpload({ modal, form, onSave });
+    if (uploaded) close();
   });
 
   updateSelectionPreview(form);
