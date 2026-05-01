@@ -9,6 +9,35 @@ const guardedUploadFormIds = new Set([
   "github-folder-upload-form",
 ]);
 
+const uploadImageAccept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+
+function normalizeUploadFileInputs(root = document) {
+  root.querySelectorAll?.("#github-image-upload-form input[type='file'], #github-folder-upload-form input[type='file']").forEach((input) => {
+    if (input instanceof HTMLInputElement) {
+      input.setAttribute("accept", uploadImageAccept);
+    }
+  });
+}
+
+function installUploadFileInputNormalizer() {
+  normalizeUploadFileInputs();
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof Element) {
+          normalizeUploadFileInputs(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
 function installDuplicateSubmitGuard() {
   document.addEventListener("submit", (event) => {
     const form = event.target;
@@ -71,6 +100,7 @@ function navigateToEditor(file) {
 // Initial render
 try {
   installDuplicateSubmitGuard();
+  installUploadFileInputNormalizer();
   saveLanguage(loadSavedLanguage());
   navigateToLanding();
 } catch (error) {
