@@ -1,4 +1,10 @@
+import { state } from "./state.js";
+
 const API_BASE = "https://api.github.com";
+
+function label(pt, en) {
+  return state.lang === "en-US" ? en : pt;
+}
 
 function encodePath(path = "") {
   return String(path)
@@ -66,7 +72,7 @@ export class GitHubClient {
       : await response.text().catch(() => "");
 
     if (!response.ok) {
-      const message = payload?.message || payload || `Erro HTTP ${response.status}`;
+      const message = payload?.message || payload || label(`Erro HTTP ${response.status}`, `HTTP error ${response.status}`);
       const error = new Error(message);
       error.status = response.status;
       error.payload = payload;
@@ -106,7 +112,7 @@ export class GitHubClient {
   async getFile({ owner, repo, branch, path }) {
     const file = await this.listContents({ owner, repo, branch, path });
     if (Array.isArray(file) || file.type !== "file") {
-      throw new Error("O caminho informado não é um arquivo.");
+      throw new Error(label("O caminho informado não é um arquivo.", "The provided path is not a file."));
     }
     return {
       ...file,
