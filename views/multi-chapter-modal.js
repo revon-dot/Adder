@@ -1,5 +1,5 @@
 import { state, getSavedImgChestToken } from "../state.js";
-import { attr, escapeHtml } from "../utils.js";
+import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
 import { scrapeImgChestAlbum } from "../imgchest.js";
 import { t } from "../i18n.js";
@@ -7,6 +7,44 @@ import { t } from "../i18n.js";
 function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
 }
+
+const copy = {
+  button: () => label("Upload múltiplo ImgChest", "Multi ImgChest upload"),
+  kicker: () => label("Importação em lote", "Batch import"),
+  title: () => label("Adicionar vários capítulos", "Add multiple chapters"),
+  albumUrls: () => label("Links dos álbuns ImgChest", "ImgChest album links"),
+  albumUrlsPlaceholder: () => label("Cole um link ImgChest por linha", "Paste one ImgChest link per line"),
+  albumUrlsHint: () => label("Cada link importado vira um novo capítulo.", "Each imported link becomes a new chapter."),
+  numbering: () => label("Numeração", "Numbering"),
+  continueMode: () => label("Continuar do último capítulo", "Continue from latest chapter"),
+  continueModeHint: (number) => label(`O primeiro novo capítulo será ${number}.`, `The first new chapter will be ${number}.`),
+  manualMode: () => label("Começar em um número específico", "Start from a specific number"),
+  manualModeHint: () => label("Use isto para preencher capítulos antigos, como 1 até 52.", "Use this to fill older chapters, such as 1 through 52."),
+  startNumber: () => label("Começar em", "Start at"),
+  increment: () => label("Incremento", "Increment"),
+  titleTemplate: () => label("Título automático", "Automatic title"),
+  titleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
+  conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
+  conflictCancel: () => label("Cancelar importação", "Cancel import"),
+  conflictSkip: () => label("Pular existentes", "Skip existing"),
+  conflictReplace: () => label("Substituir existentes", "Replace existing"),
+  conflictHint: () => label("O padrão é cancelar para evitar sobrescrever capítulos por engano.", "The default is cancel to avoid overwriting chapters by mistake."),
+  importingTitle: () => label("Importando capítulos...", "Importing chapters..."),
+  preparing: () => label("Preparando importação.", "Preparing import."),
+  startImport: () => label("Importar capítulos", "Import chapters"),
+  pasteLinksFirst: () => label("Cole pelo menos um link ImgChest.", "Paste at least one ImgChest link."),
+  invalidStartNumber: () => label("Informe um número inicial válido.", "Enter a valid start number."),
+  invalidIncrement: () => label("O incremento precisa ser maior que zero.", "The increment must be greater than zero."),
+  conflictCancelToast: (numbers) => label(`Conflito: os capítulos ${numbers} já existem.`, `Conflict: chapters ${numbers} already exist.`),
+  replaceConfirm: (numbers) => label(`Os capítulos ${numbers} já existem. Substituir esses capítulos?`, `Chapters ${numbers} already exist. Replace them?`),
+  progress: (current, total, number) => label(`Importando ${current}/${total} — capítulo ${number}`, `Importing ${current}/${total} — chapter ${number}`),
+  skippedLine: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
+  importedLine: (number, count) => label(`Capítulo ${number}: ${count} imagens importadas.`, `Chapter ${number}: ${count} images imported.`),
+  failedLine: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
+  nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
+  partialConfirm: (imported, failed) => label(`${imported} capítulos importados e ${failed} falharam. Manter os importados?`, `${imported} chapters imported and ${failed} failed. Keep the imported chapters?`),
+  done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
+};
 
 function uniqueLines(text = "") {
   const seen = new Set();
@@ -58,7 +96,7 @@ function setProgress(modal, { done, total, text }) {
   const status = modal.querySelector("[data-multi-status]");
   const bar = modal.querySelector("[data-multi-bar]");
   const progress = total ? Math.round((done / total) * 100) : 0;
-  if (status) status.textContent = text || t("multiImportPreparing");
+  if (status) status.textContent = text || copy.preparing();
   if (bar) bar.style.setProperty("--progress", `${progress}%`);
 }
 
@@ -101,17 +139,17 @@ async function runImport({ modal, form, onSave }) {
   const titleTemplate = String(formData.get("titleTemplate") || "").trim();
 
   if (!urls.length) {
-    toast(t("multiPasteLinksFirst"), "error");
+    toast(copy.pasteLinksFirst(), "error");
     return;
   }
 
   if (mode === "manual" && !Number.isFinite(startNumber)) {
-    toast(t("multiInvalidStartNumber"), "error");
+    toast(copy.invalidStartNumber(), "error");
     return;
   }
 
   if (!Number.isFinite(increment) || increment <= 0) {
-    toast(t("multiInvalidIncrement"), "error");
+    toast(copy.invalidIncrement(), "error");
     return;
   }
 
@@ -119,12 +157,12 @@ async function runImport({ modal, form, onSave }) {
   const { plan, conflicts } = buildPlan({ chapters, urls, mode, startNumber, increment, conflictMode });
 
   if (conflicts.length && conflictMode === "cancel") {
-    toast(t("multiConflictCancelToast", { numbers: conflicts.join(", ") }), "error");
+    toast(copy.conflictCancelToast(conflicts.join(", ")), "error");
     return;
   }
 
   if (conflicts.length && conflictMode === "replace") {
-    const ok = confirm(t("multiReplaceConfirm", { numbers: conflicts.join(", ") }));
+    const ok = confirm(copy.replaceConfirm(conflicts.join(", ")));
     if (!ok) return;
   }
 
@@ -132,7 +170,7 @@ async function runImport({ modal, form, onSave }) {
   if (progress) progress.hidden = false;
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: plan.length, text: t("multiImportPreparing") });
+  setProgress(modal, { done: 0, total: plan.length, text: copy.preparing() });
 
   const token = state.config?.imgchestToken || getSavedImgChestToken();
   const imported = [];
@@ -146,20 +184,12 @@ async function runImport({ modal, form, onSave }) {
 
       if (item.exists && item.action === "skip") {
         skipped.push(item);
-        addSummaryLine(modal, "skip", t("multiSkippedLine", { number: item.number }));
-        setProgress(modal, {
-          done: current,
-          total: plan.length,
-          text: t("multiImportProgress", { current, total: plan.length, number: item.number }),
-        });
+        addSummaryLine(modal, "skip", copy.skippedLine(item.number));
+        setProgress(modal, { done: current, total: plan.length, text: copy.progress(current, plan.length, item.number) });
         continue;
       }
 
-      setProgress(modal, {
-        done: index,
-        total: plan.length,
-        text: t("multiImportProgress", { current, total: plan.length, number: item.number }),
-      });
+      setProgress(modal, { done: index, total: plan.length, text: copy.progress(current, plan.length, item.number) });
 
       try {
         const images = await scrapeImgChestAlbum(item.albumUrl, { token });
@@ -175,31 +205,27 @@ async function runImport({ modal, form, onSave }) {
             },
           },
         });
-        addSummaryLine(modal, "ok", t("multiImportedLine", { number: item.number, count: images.length }));
+        addSummaryLine(modal, "ok", copy.importedLine(item.number, images.length));
       } catch (error) {
         failed.push({ ...item, error });
-        addSummaryLine(modal, "fail", t("multiFailedLine", { number: item.number, message: error.message || String(error) }));
+        addSummaryLine(modal, "fail", copy.failedLine(item.number, error.message || String(error)));
       }
 
-      setProgress(modal, {
-        done: current,
-        total: plan.length,
-        text: t("multiImportProgress", { current, total: plan.length, number: item.number }),
-      });
+      setProgress(modal, { done: current, total: plan.length, text: copy.progress(current, plan.length, item.number) });
     }
 
     if (!imported.length) {
-      toast(t("multiNothingImported"), "error");
+      toast(copy.nothingImported(), "error");
       return;
     }
 
     if (failed.length) {
-      const ok = confirm(t("multiPartialConfirm", { imported: imported.length, failed: failed.length }));
+      const ok = confirm(copy.partialConfirm(imported.length, failed.length));
       if (!ok) return;
     }
 
     onSave({ imported, failed, skipped });
-    toast(t("multiImportDone", { count: imported.length }), "success");
+    toast(copy.done(imported.length), "success");
     modal.remove();
   } finally {
     setBusy(false);
@@ -216,47 +242,47 @@ export function showMultiChapterUploadModal({ onSave }) {
     <aside class="chapter-drawer multi-chapter-drawer">
       <div class="drawer-header">
         <div>
-          <p class="kicker">${t("multiUploadKicker")}</p>
-          <h2>${t("multiUploadTitle")}</h2>
+          <p class="kicker">${copy.kicker()}</p>
+          <h2>${copy.title()}</h2>
         </div>
         <button class="btn ghost small" type="button" data-close-modal>${t("close")}</button>
       </div>
 
       <form id="multi-chapter-form" class="drawer-form" autocomplete="off">
         <label class="field">
-          <span>${t("multiAlbumUrls")}</span>
-          <textarea class="multi-chapter-textarea" name="albumUrls" placeholder="${attr(t("multiAlbumUrlsPlaceholder"))}" required></textarea>
-          <p class="hint">${t("multiAlbumUrlsHint")}</p>
+          <span>${copy.albumUrls()}</span>
+          <textarea class="multi-chapter-textarea" name="albumUrls" placeholder="${attr(copy.albumUrlsPlaceholder())}" required></textarea>
+          <p class="hint">${copy.albumUrlsHint()}</p>
         </label>
 
         <div class="drawer-section-title">
-          <strong>${t("multiNumbering")}</strong>
+          <strong>${copy.numbering()}</strong>
         </div>
 
         <div class="multi-chapter-options">
           <label class="multi-chapter-option">
             <input type="radio" name="numberingMode" value="continue" checked />
             <span>
-              <strong>${t("multiContinueMode")}</strong>
-              <span>${t("multiContinueModeHint", { number: formatChapterNumber(nextNumber) })}</span>
+              <strong>${copy.continueMode()}</strong>
+              <span>${copy.continueModeHint(formatChapterNumber(nextNumber))}</span>
             </span>
           </label>
           <label class="multi-chapter-option">
             <input type="radio" name="numberingMode" value="manual" />
             <span>
-              <strong>${t("multiManualMode")}</strong>
-              <span>${t("multiManualModeHint")}</span>
+              <strong>${copy.manualMode()}</strong>
+              <span>${copy.manualModeHint()}</span>
             </span>
           </label>
         </div>
 
         <div class="drawer-grid">
           <label class="field">
-            <span>${t("multiStartNumber")}</span>
+            <span>${copy.startNumber()}</span>
             <input name="startNumber" type="number" step="0.001" value="${attr(formatChapterNumber(nextNumber))}" />
           </label>
           <label class="field">
-            <span>${t("multiIncrement")}</span>
+            <span>${copy.increment()}</span>
             <input name="increment" type="number" step="0.001" min="0.001" value="1" />
           </label>
         </div>
@@ -267,27 +293,27 @@ export function showMultiChapterUploadModal({ onSave }) {
             <input name="groupName" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
           </label>
           <label class="field">
-            <span>${t("multiTitleTemplate")}</span>
-            <input name="titleTemplate" placeholder="${attr(t("multiTitleTemplatePlaceholder"))}" />
+            <span>${copy.titleTemplate()}</span>
+            <input name="titleTemplate" placeholder="${attr(copy.titleTemplatePlaceholder())}" />
           </label>
         </div>
 
         <label class="field">
-          <span>${t("multiConflictMode")}</span>
+          <span>${copy.conflictMode()}</span>
           <select name="conflictMode">
-            <option value="cancel">${t("multiConflictCancel")}</option>
-            <option value="skip">${t("multiConflictSkip")}</option>
-            <option value="replace">${t("multiConflictReplace")}</option>
+            <option value="cancel">${copy.conflictCancel()}</option>
+            <option value="skip">${copy.conflictSkip()}</option>
+            <option value="replace">${copy.conflictReplace()}</option>
           </select>
-          <p class="hint">${t("multiConflictHint")}</p>
+          <p class="hint">${copy.conflictHint()}</p>
         </label>
 
         <section class="multi-chapter-progress" data-multi-progress hidden>
           <div class="multi-chapter-progress-head">
             <div class="multi-chapter-spinner" aria-hidden="true"></div>
             <div>
-              <h3>${t("multiImportingTitle")}</h3>
-              <p data-multi-status>${t("multiImportPreparing")}</p>
+              <h3>${copy.importingTitle()}</h3>
+              <p data-multi-status>${copy.preparing()}</p>
             </div>
           </div>
           <div class="multi-chapter-bar" aria-hidden="true"><span data-multi-bar></span></div>
@@ -295,7 +321,7 @@ export function showMultiChapterUploadModal({ onSave }) {
         </section>
 
         <div class="drawer-actions">
-          <button class="btn primary" type="submit">${t("multiStartImport")}</button>
+          <button class="btn primary" type="submit">${copy.startImport()}</button>
           <button class="btn ghost" type="button" data-close-modal>${t("cancel")}</button>
         </div>
       </form>
@@ -316,4 +342,8 @@ export function showMultiChapterUploadModal({ onSave }) {
   });
 
   form.albumUrls?.focus();
+}
+
+export function multiChapterUploadButtonLabel() {
+  return copy.button();
 }
