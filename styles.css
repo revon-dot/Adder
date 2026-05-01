@@ -81,6 +81,7 @@ label, .field-label { color: var(--text); font-weight: 750; }
 .hint { margin: 0; color: var(--muted-2); font-size: 0.88rem; line-height: 1.5; }
 input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #0f1117; color: var(--text); outline: none; padding: 12px 13px; transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease; }
 input:focus, textarea:focus, select:focus { border-color: rgba(79, 140, 255, 0.75); box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.12); }
+input[type="checkbox"] { width: auto; accent-color: var(--accent); }
 textarea { min-height: 120px; resize: vertical; }
 .branch-field { align-self: start; }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); }
@@ -163,18 +164,24 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 .chapter-manager { display: grid; gap: 12px; }
 .chapter-toolbar-light { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .chapter-toolbar-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; }
+.chapter-bulk-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(255, 90, 109, 0.2); border-radius: 14px; background: rgba(255, 90, 109, 0.08); }
+.chapter-bulk-actions .row-actions { gap: 8px; }
 .chapter-page-size-control { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; font-weight: 650; white-space: nowrap; }
 .chapter-page-size-control select { width: auto; min-width: 92px; min-height: 36px; padding: 7px 32px 7px 11px; border-radius: 999px; }
 .chapter-count { color: var(--muted-2); font-size: 0.9rem; white-space: nowrap; }
 .chapter-table-wrap { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 14px; background: rgba(10, 12, 18, 0.58); }
-.chapter-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.chapter-table { width: 100%; border-collapse: collapse; min-width: 760px; }
 .chapter-table th, .chapter-table td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: middle; }
 .chapter-table th { position: sticky; top: 0; z-index: 1; background: #11141b; color: var(--muted); font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .chapter-table td { color: #e8edf8; }
 .chapter-table tbody tr { transition: background 0.12s ease; }
 .chapter-table tbody tr:hover { background: rgba(79, 140, 255, 0.06); }
+.chapter-table tbody tr.chapter-row-selected { background: rgba(79, 140, 255, 0.11); }
+.chapter-table tbody tr.chapter-row-selected:hover { background: rgba(79, 140, 255, 0.15); }
 .chapter-table tbody tr:last-child td { border-bottom: 0; }
 .chapter-table strong { font-size: 0.94rem; font-weight: 760; }
+.chapter-select-col { width: 44px; text-align: center !important; }
+.chapter-select-col input { width: 18px; height: 18px; padding: 0; }
 .small-badge { min-width: 30px; height: 28px; font-size: 0.86rem; }
 .compact-actions { gap: 6px; flex-wrap: nowrap; }
 .compact-actions .btn { min-height: 30px; padding: 5px 10px; font-size: 0.82rem; }
@@ -211,6 +218,8 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
   .inline-tools .btn { flex: 1 1 auto; }
   .chapter-toolbar-light { grid-template-columns: 1fr; }
   .chapter-toolbar-meta { justify-content: space-between; }
+  .chapter-bulk-actions { align-items: stretch; }
+  .chapter-bulk-actions .row-actions { justify-content: flex-end; }
   .chapter-page-size-control { flex: 1 1 auto; }
   .chapter-page-size-control select { flex: 1 1 auto; }
   .chapter-pagination { justify-content: center; }
@@ -218,8 +227,8 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 }
 
 @media (max-width: 700px) {
-  .chapter-table { min-width: 520px; }
-  .chapter-table th:nth-child(4), .chapter-table td:nth-child(4), .chapter-table th:nth-child(5), .chapter-table td:nth-child(5) { display: none; }
+  .chapter-table { min-width: 560px; }
+  .chapter-table th:nth-child(5), .chapter-table td:nth-child(5), .chapter-table th:nth-child(6), .chapter-table td:nth-child(6) { display: none; }
   .chapter-mobile-meta { display: block; }
   .compact-actions { flex-wrap: wrap; }
   .editor-chapter-actions { gap: 10px; }
