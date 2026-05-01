@@ -1,7 +1,8 @@
 import { state, getSavedImgChestToken } from "../state.js";
 import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
-import { scrapeImgChestAlbum } from "../imgchest.js";
+import { scrapeImgChestAlbumDetails } from "../imgchest.js";
+import { addToChapterNumber, extractChapterNumberFromTitle, isValidChapterNumber, normalizeChapterNumber } from "../chapter-number.js";
 import { t } from "../i18n.js";
 
 function label(pt, en) {
@@ -14,12 +15,12 @@ const copy = {
   title: () => label("Adicionar vários capítulos", "Add multiple chapters"),
   albumUrls: () => label("Links dos álbuns ImgChest", "ImgChest album links"),
   albumUrlsPlaceholder: () => label("Cole um link ImgChest por linha", "Paste one ImgChest link per line"),
-  albumUrlsHint: () => label("Cada link importado vira um novo capítulo.", "Each imported link becomes a new chapter."),
-  numbering: () => label("Numeração", "Numbering"),
+  albumUrlsHint: () => label("Se o álbum tiver título, o Adder tenta detectar o número do capítulo automaticamente. Se não tiver, usa a sequência abaixo.", "If the album has a title, Adder tries to detect the chapter number automatically. If not, it uses the sequence below."),
+  numbering: () => label("Numeração de fallback", "Fallback numbering"),
   continueMode: () => label("Continuar do último capítulo", "Continue from latest chapter"),
-  continueModeHint: (number) => label(`O primeiro novo capítulo será ${number}.`, `The first new chapter will be ${number}.`),
+  continueModeHint: (number) => label(`O primeiro capítulo sem número detectado será ${number}.`, `The first chapter without a detected number will be ${number}.`),
   manualMode: () => label("Começar em um número específico", "Start from a specific number"),
-  manualModeHint: () => label("Use isto para preencher capítulos específicos. Digite o número do capítulo que você começará fazendo o upload.", "Use this to fill specific chapters. Enter the chapter number where the upload should start."),
+  manualModeHint: () => label("Usado só quando o título do álbum não tiver número detectável.", "Used only when the album title has no detectable number."),
   startNumber: () => label("Começar em", "Start at"),
   titleTemplate: () => label("Título automático", "Automatic title"),
   titleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
@@ -33,11 +34,13 @@ const copy = {
   startImport: () => label("Importar Capítulos", "Import Chapters"),
   cancel: () => label("Cancelar", "Cancel"),
   pasteLinksFirst: () => label("Cole pelo menos um link ImgChest.", "Paste at least one ImgChest link."),
-  invalidStartNumber: () => label("Informe um número inicial inteiro válido.", "Enter a valid whole start number."),
+  invalidStartNumber: () => label("Informe um número inicial válido. Exemplos: 97, 97.5, 10.2.", "Enter a valid start number. Examples: 97, 97.5, 10.2."),
   conflictCancelToast: (numbers) => label(`Conflito: os capítulos ${numbers} já existem.`, `Conflict: chapters ${numbers} already exist.`),
   replaceConfirm: (numbers) => label(`Os capítulos ${numbers} já existem. Substituir esses capítulos?`, `Chapters ${numbers} already exist. Replace them?`),
   progress: (current, total, number) => label(`Importando ${current}/${total} — capítulo ${number}`, `Importing ${current}/${total} — chapter ${number}`),
   skippedLine: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
+  detectedLine: (title, number) => label(`Título "${title}" → capítulo ${number}.`, `Title "${title}" → chapter ${number}.`),
+  fallbackLine: (number) => label(`Sem número detectado no título. Usando fallback: capítulo ${number}.`, `No number detected in title. Using fallback: chapter ${number}.`),
   importedLine: (number, count) => label(`Capítulo ${number}: ${count} imagens importadas.`, `Chapter ${number}: ${count} images imported.`),
   failedLine: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
   nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
@@ -71,27 +74,16 @@ function getHighestNumericChapter(chapters = {}) {
 }
 
 function getNextChapterNumber() {
-  return Math.floor(getHighestNumericChapter(state.current?.data?.chapters || {})) + 1;
+  const highest = getHighestNumericChapter(state.current?.data?.chapters || {});
+  return normalizeChapterNumber(String(Math.floor(highest) + 1));
 }
 
 function formatChapterNumber(value) {
-  return String(Math.trunc(Number(value) || 0));
+  return normalizeChapterNumber(value);
 }
 
-function buildPlan({ chapters, urls, mode, startNumber, conflictMode }) {
-  const existing = chapters || {};
-  const base = mode === "manual" ? Number(startNumber) : getNextChapterNumber();
-  const plan = [];
-  const conflicts = [];
-
-  urls.forEach((albumUrl, index) => {
-    const number = formatChapterNumber(base + index);
-    const exists = Object.prototype.hasOwnProperty.call(existing, number);
-    if (exists) conflicts.push(number);
-    plan.push({ albumUrl, number, exists, action: exists ? conflictMode : "create" });
-  });
-
-  return { plan, conflicts };
+function fallbackNumber(base, index) {
+  return addToChapterNumber(base, index);
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -131,9 +123,19 @@ function updateManualStartState(form) {
   const isManual = selectedNumberingMode(form) === "manual";
   if (!isManual) {
     startInput.value = formatChapterNumber(getNextChapterNumber());
+  } else {
+    startInput.value = formatChapterNumber(startInput.value);
   }
   startInput.disabled = !isManual;
   startInput.setAttribute("aria-disabled", String(!isManual));
+}
+
+function resolveConflict({ existing, number, conflictMode }) {
+  const exists = Object.prototype.hasOwnProperty.call(existing, number);
+  return {
+    exists,
+    action: exists ? conflictMode : "create",
+  };
 }
 
 async function runImport({ modal, form, onSave }) {
@@ -141,7 +143,7 @@ async function runImport({ modal, form, onSave }) {
   const formData = new FormData(form);
   const urls = uniqueLines(formData.get("albumUrls"));
   const mode = selectedNumberingMode(form);
-  const startNumber = Number(formData.get("startNumber"));
+  const startNumber = formatChapterNumber(formData.get("startNumber"));
   const conflictMode = String(formData.get("conflictMode") || "cancel");
   const groupName = String(formData.get("groupName") || "").trim();
   const titleTemplate = String(formData.get("titleTemplate") || "").trim();
@@ -151,70 +153,86 @@ async function runImport({ modal, form, onSave }) {
     return;
   }
 
-  if (mode === "manual" && (!Number.isInteger(startNumber) || startNumber < 1)) {
+  if (mode === "manual" && (!isValidChapterNumber(startNumber) || Number.parseFloat(startNumber) < 1)) {
     toast(copy.invalidStartNumber(), "error");
     return;
   }
 
-  const chapters = state.current?.data?.chapters || {};
-  const { plan, conflicts } = buildPlan({ chapters, urls, mode, startNumber, conflictMode });
-
-  if (conflicts.length && conflictMode === "cancel") {
-    toast(copy.conflictCancelToast(conflicts.join(", ")), "error");
-    return;
-  }
-
-  if (conflicts.length && conflictMode === "replace") {
-    const ok = confirm(copy.replaceConfirm(conflicts.join(", ")));
-    if (!ok) return;
-  }
+  const existing = state.current?.data?.chapters || {};
+  const base = mode === "manual" ? startNumber : getNextChapterNumber();
 
   const progress = modal.querySelector("[data-multi-progress]");
   if (progress) progress.hidden = false;
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: plan.length, text: copy.preparing() });
+  setProgress(modal, { done: 0, total: urls.length, text: copy.preparing() });
 
   const token = state.config?.imgchestToken || getSavedImgChestToken();
   const imported = [];
   const failed = [];
   const skipped = [];
+  let fallbackIndex = 0;
 
   try {
-    for (let index = 0; index < plan.length; index += 1) {
-      const item = plan[index];
+    for (let index = 0; index < urls.length; index += 1) {
+      const albumUrl = urls[index];
       const current = index + 1;
+      let number = fallbackNumber(base, fallbackIndex);
 
-      if (item.exists && item.action === "skip") {
-        skipped.push(item);
-        addSummaryLine(modal, "skip", copy.skippedLine(item.number));
-        setProgress(modal, { done: current, total: plan.length, text: copy.progress(current, plan.length, item.number) });
-        continue;
-      }
-
-      setProgress(modal, { done: index, total: plan.length, text: copy.progress(current, plan.length, item.number) });
+      setProgress(modal, { done: index, total: urls.length, text: copy.progress(current, urls.length, number) });
 
       try {
-        const images = await scrapeImgChestAlbum(item.albumUrl, { token });
-        const title = titleTemplate ? titleTemplate.replaceAll("{n}", item.number) : "";
+        const details = await scrapeImgChestAlbumDetails(albumUrl, { token });
+        const detectedNumber = extractChapterNumberFromTitle(details.title);
+
+        if (detectedNumber) {
+          number = detectedNumber;
+          addSummaryLine(modal, "ok", copy.detectedLine(details.title, number));
+        } else {
+          fallbackIndex += 1;
+          addSummaryLine(modal, "skip", copy.fallbackLine(number));
+        }
+
+        const conflict = resolveConflict({ existing, number, conflictMode });
+
+        if (conflict.exists && conflict.action === "cancel") {
+          throw new Error(copy.conflictCancelToast(number));
+        }
+
+        if (conflict.exists && conflict.action === "replace") {
+          const ok = confirm(copy.replaceConfirm(number));
+          if (!ok) {
+            skipped.push({ albumUrl, number, exists: true, action: "skip" });
+            addSummaryLine(modal, "skip", copy.skippedLine(number));
+            continue;
+          }
+        }
+
+        if (conflict.exists && conflict.action === "skip") {
+          skipped.push({ albumUrl, number, exists: true, action: "skip" });
+          addSummaryLine(modal, "skip", copy.skippedLine(number));
+          continue;
+        }
+
+        const title = titleTemplate ? titleTemplate.replaceAll("{n}", number) : "";
         imported.push({
-          number: item.number,
+          number,
           chapter: {
             title,
             volume: "",
             last_updated: String(Math.floor(Date.now() / 1000)),
             groups: {
-              [groupName]: images,
+              [groupName]: details.images,
             },
           },
         });
-        addSummaryLine(modal, "ok", copy.importedLine(item.number, images.length));
+        addSummaryLine(modal, "ok", copy.importedLine(number, details.images.length));
       } catch (error) {
-        failed.push({ ...item, error });
-        addSummaryLine(modal, "fail", copy.failedLine(item.number, error.message || String(error)));
+        failed.push({ albumUrl, number, error });
+        addSummaryLine(modal, "fail", copy.failedLine(number, error.message || String(error)));
       }
 
-      setProgress(modal, { done: current, total: plan.length, text: copy.progress(current, plan.length, item.number) });
+      setProgress(modal, { done: current, total: urls.length, text: copy.progress(current, urls.length, number) });
     }
 
     if (!imported.length) {
@@ -282,7 +300,7 @@ export function showMultiChapterUploadModal({ onSave }) {
 
           <label class="field">
             <span>${copy.startNumber()}</span>
-            <input name="startNumber" type="number" step="1" min="1" inputmode="numeric" value="${attr(formatChapterNumber(nextNumber))}" />
+            <input name="startNumber" type="text" inputmode="decimal" pattern="\\d+(\\.\\d+)?" value="${attr(formatChapterNumber(nextNumber))}" />
           </label>
 
           <div class="drawer-grid">
@@ -333,6 +351,7 @@ export function showMultiChapterUploadModal({ onSave }) {
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
   form.querySelectorAll("input[name='numberingMode']").forEach((input) => input.addEventListener("change", () => updateManualStartState(form)));
+  form.querySelector("input[name='startNumber']")?.addEventListener("blur", () => updateManualStartState(form));
   updateManualStartState(form);
 
   form.addEventListener("submit", async (event) => {
