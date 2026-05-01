@@ -1,6 +1,6 @@
 .chapter-action-groups {
-  align-items: stretch;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 8px;
 }
 
@@ -8,8 +8,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  align-content: flex-start;
+  gap: 9px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  padding: 10px 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.025);
@@ -18,9 +22,10 @@
 .chapter-action-label {
   width: 100%;
   color: var(--muted-2);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 850;
   letter-spacing: 0.08em;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
@@ -28,14 +33,50 @@
   margin: -4px 0 18px;
 }
 
+.chapter-drawer:not(.multi-chapter-drawer) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chapter-drawer:not(.multi-chapter-drawer) .drawer-header {
+  position: static;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  margin: -20px -20px 16px;
+  padding: 18px 20px;
+  background:
+    linear-gradient(135deg, rgba(79, 140, 255, 0.12), rgba(17, 20, 27, 0.96) 46%),
+    #11141b;
+}
+
+.chapter-drawer:not(.multi-chapter-drawer) .drawer-header .kicker {
+  margin-bottom: 6px;
+}
+
+.chapter-drawer:not(.multi-chapter-drawer) .drawer-header h2 {
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.chapter-drawer:not(.multi-chapter-drawer) .drawer-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 0;
+}
+
 @media (max-width: 700px) {
   .chapter-action-groups {
     display: grid;
+    align-items: stretch;
   }
 
   .chapter-action-group {
     display: grid;
     grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .chapter-action-group .btn {
