@@ -54,11 +54,12 @@ const copy = {
   chapterExists: (number) => label(`Capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
   confirmReplace: (count) => label(`${count} capítulo(s) existente(s) serão substituídos/mesclados no JSON. Continuar?`, `${count} existing chapter(s) will be replaced/merged in the JSON. Continue?`),
   preparing: () => label("Preparando lote...", "Preparing batch..."),
+  checkingFolder: (current, total, number) => label(`Verificando pasta do capítulo ${number} (${current}/${total})`, `Checking chapter ${number} folder (${current}/${total})`),
   processingChapter: (current, total, number) => label(`Processando capítulo ${number} (${current}/${total})`, `Processing chapter ${number} (${current}/${total})`),
-  checkingChapter: (current, total, number) => label(`Verificando arquivos do capítulo ${number} (${current}/${total})`, `Checking chapter ${number} files (${current}/${total})`),
+  checkingChapter: (current, total, number) => label(`Preparando sobrescrita do capítulo ${number} (${current}/${total})`, `Preparing overwrite for chapter ${number} (${current}/${total})`),
   uploadingChapter: (current, total, number) => label(`Enviando capítulo ${number} (${current}/${total})`, `Uploading chapter ${number} (${current}/${total})`),
-  existingFiles: (count, number) => label(`Capítulo ${number}: ${count} arquivo(s) existente(s) serão sobrescritos.`, `Chapter ${number}: ${count} existing file(s) will be overwritten.`),
-  confirmOverwriteFiles: (count, number) => label(`Capítulo ${number}: ${count} arquivo(s) já existem no GitHub e serão sobrescritos. Continuar?`, `Chapter ${number}: ${count} file(s) already exist on GitHub and will be overwritten. Continue?`),
+  existingFolder: (number, count) => label(`Capítulo ${number}: pasta existente encontrada com ${count} arquivo(s).`, `Chapter ${number}: existing folder found with ${count} file(s).`),
+  confirmOverwriteFolder: (number, count) => label(`Capítulo ${number}: a pasta já existe no GitHub com ${count} arquivo(s). Continuar e sobrescrever arquivos com o mesmo nome?`, `Chapter ${number}: the folder already exists on GitHub with ${count} file(s). Continue and overwrite files with the same name?`),
   overwriteCancelled: (number) => label(`Capítulo ${number}: sobrescrita cancelada pelo usuário.`, `Chapter ${number}: overwrite cancelled by the user.`),
   uploadedChapter: (number, count) => label(`Capítulo ${number}: ${count} imagens enviadas.`, `Chapter ${number}: ${count} images uploaded.`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
@@ -261,26 +262,79 @@ function collectSettings(form) {
   };
 }
 
-async function getExistingFileSha(client, path) {
+function chapterFolderForGroup(chapterGroup, settings) {
+  return buildGithubImageFolder({
+    imagesRoot: settings.imagesRoot,
+    jsonFileName: getJsonFileName(),
+    chapterNumber: chapterGroup.number,
+  });
+}
+
+async function getExistingFolderFiles(client, folderPath) {
   try {
-    const file = await client.listContents({
+    const contents = await client.listContents({
       ...state.config,
-      path,
+      path: folderPath,
     });
 
-    if (Array.isArray(file) || file?.type !== "file") return null;
-    return file.sha || null;
+    const items = Array.isArray(contents) ? contents : [contents];
+    const fileShas = new Map();
+
+    items.forEach((item) => {
+      if (item?.type === "file" && item.name && item.sha) {
+        fileShas.set(item.name, item.sha);
+      }
+    });
+
+    return {
+      exists: true,
+      fileCount: fileShas.size,
+      fileShas,
+    };
   } catch (error) {
-    if (error.status === 404) return null;
+    if (error.status === 404) {
+      return {
+        exists: false,
+        fileCount: 0,
+        fileShas: new Map(),
+      };
+    }
     throw error;
   }
 }
 
 async function uploadChapter({ modal, client, chapterGroup, settings, index, total }) {
   const jsonFileName = getJsonFileName();
+  const folder = chapterFolderForGroup(chapterGroup, settings);
 
   setProgress(modal, {
     done: index * 3,
+    total: total * 3,
+    text: copy.checkingFolder(index + 1, total, chapterGroup.number),
+  });
+
+  const existingFolder = await getExistingFolderFiles(client, folder);
+  if (existingFolder.exists) {
+    addSummaryLine(modal, "skip", copy.existingFolder(chapterGroup.number, existingFolder.fileCount));
+
+    if (settings.conflictMode === "skip") {
+      addSummaryLine(modal, "skip", copy.skippedChapter(chapterGroup.number));
+      return null;
+    }
+
+    if (settings.conflictMode === "cancel") {
+      throw new Error(copy.chapterExists(chapterGroup.number));
+    }
+
+    const ok = confirm(copy.confirmOverwriteFolder(chapterGroup.number, existingFolder.fileCount));
+    if (!ok) {
+      addSummaryLine(modal, "skip", copy.overwriteCancelled(chapterGroup.number));
+      return null;
+    }
+  }
+
+  setProgress(modal, {
+    done: index * 3 + 1,
     total: total * 3,
     text: copy.processingChapter(index + 1, total, chapterGroup.number),
   });
@@ -297,27 +351,10 @@ async function uploadChapter({ modal, client, chapterGroup, settings, index, tot
     images: processed,
     imagesRoot: settings.imagesRoot,
     linkMode: settings.linkMode,
-  });
-
-  setProgress(modal, {
-    done: index * 3 + 1,
-    total: total * 3,
-    text: copy.checkingChapter(index + 1, total, chapterGroup.number),
-  });
-
-  for (const item of items) {
-    item.sha = await getExistingFileSha(client, item.path);
-  }
-
-  const existingFileCount = items.filter((item) => item.sha).length;
-  if (existingFileCount) {
-    addSummaryLine(modal, "skip", copy.existingFiles(existingFileCount, chapterGroup.number));
-    const ok = confirm(copy.confirmOverwriteFiles(existingFileCount, chapterGroup.number));
-    if (!ok) {
-      addSummaryLine(modal, "skip", copy.overwriteCancelled(chapterGroup.number));
-      return null;
-    }
-  }
+  }).map((item) => ({
+    ...item,
+    sha: existingFolder.fileShas.get(item.fileName) || null,
+  }));
 
   setProgress(modal, {
     done: index * 3 + 2,
@@ -391,20 +428,11 @@ async function runUpload({ modal, form, onSave }) {
     if (!ok) return false;
   }
 
-  const chaptersToUpload = settings.conflictMode === "skip"
-    ? stats.chapters.filter((chapter) => !Object.prototype.hasOwnProperty.call(existing, chapter.number))
-    : stats.chapters;
-
-  if (!chaptersToUpload.length) {
-    toast(label("Todos os capítulos detectados já existem e foram pulados.", "All detected chapters already exist and were skipped."), "error");
-    return false;
-  }
-
   const progress = modal.querySelector("[data-folder-upload-progress]");
   if (progress) progress.hidden = false;
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: chaptersToUpload.length * 3, text: copy.preparing() });
+  setProgress(modal, { done: 0, total: stats.chapters.length * 3, text: copy.preparing() });
 
   try {
     if (settings.conflictMode === "skip") {
@@ -414,6 +442,9 @@ async function runUpload({ modal, form, onSave }) {
     const client = ensureClient();
     const imported = [];
     const failed = [];
+    const chaptersToUpload = settings.conflictMode === "skip"
+      ? stats.chapters.filter((chapter) => !Object.prototype.hasOwnProperty.call(existing, chapter.number))
+      : stats.chapters;
 
     for (let index = 0; index < chaptersToUpload.length; index += 1) {
       const chapterGroup = chaptersToUpload[index];
