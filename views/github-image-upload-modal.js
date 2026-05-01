@@ -3,7 +3,8 @@ import { attr } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
-import { processImageFiles, filterImageFiles, formatOutputFileName, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
+import { filterImageFiles, formatOutputFileName, sumBytes, formatBytes, imageProcessingDefaults } from "../image-processing.js";
+import { resizeImagesKeepingFormat } from "../image-resize-original-format.js";
 import { buildGithubImageUploadItems, buildGithubImageFolder, buildGithubImagePath, githubImageDefaults } from "../github-image-links.js";
 import { normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
 
@@ -25,18 +26,18 @@ const copy = {
   group: () => label("Grupo", "Group"),
   imagesRoot: () => label("Pasta base das imagens", "Images root folder"),
   maxWidth: () => label("Largura máxima", "Max width"),
-  quality: () => label("Qualidade JPG", "JPG quality"),
+  quality: () => label("Qualidade JPG/WebP", "JPG/WebP quality"),
   linkMode: () => label("Tipo de link", "Link type"),
   rawMode: () => label("Raw GitHub", "Raw GitHub"),
   pagesMode: () => label("GitHub Pages", "GitHub Pages"),
   pagesWarning: () => label("Use GitHub Pages apenas se o repositório tiver Pages publicado e público. Se estiver em dúvida, use Raw GitHub.", "Use GitHub Pages only if this repository has public Pages enabled. If unsure, use Raw GitHub."),
   fileInput: () => label("Imagens", "Images"),
-  fileInputHint: () => label("Selecione as páginas do capítulo. O Adder ordena por nome e renomeia como 001.jpg, 002.jpg...", "Select the chapter pages. Adder sorts by name and renames them as 001.jpg, 002.jpg..."),
+  fileInputHint: () => label("Selecione as páginas do capítulo. O Adder redimensiona para largura máxima de 1100 px, mantém JPG/PNG/WebP e renomeia como 001.ext, 002.ext...", "Select the chapter pages. Adder resizes to a max width of 1100 px, preserves JPG/PNG/WebP, and renames as 001.ext, 002.ext..."),
   selectionEmpty: () => label("Nenhuma imagem selecionada ainda.", "No images selected yet."),
-  selectionSummary: (count, size) => label(`${count} imagens selecionadas · ${size} antes da compressão`, `${count} images selected · ${size} before compression`),
+  selectionSummary: (count, size) => label(`${count} imagens selecionadas · ${size} antes do redimensionamento`, `${count} images selected · ${size} before resizing`),
   selectionOrder: (names, remaining) => label(`Ordem detectada: ${names}${remaining > 0 ? ` +${remaining} arquivo(s)` : ""}`, `Detected order: ${names}${remaining > 0 ? ` +${remaining} file(s)` : ""}`),
   selectionWarning: () => label("Seleção grande. O upload pode demorar e deixar o repositório pesado.", "Large selection. Upload may take a while and make the repository heavy."),
-  confirmLargeSelection: (count, size) => label(`Você selecionou ${count} imagens (${size}) antes da compressão. Continuar mesmo assim?`, `You selected ${count} images (${size}) before compression. Continue anyway?`),
+  confirmLargeSelection: (count, size) => label(`Você selecionou ${count} imagens (${size}) antes do redimensionamento. Continuar mesmo assim?`, `You selected ${count} images (${size}) before resizing. Continue anyway?`),
   conflictMode: () => label("Se o capítulo já existir no JSON", "If the chapter already exists in the JSON"),
   conflictCancel: () => label("Cancelar", "Cancel"),
   conflictReplace: () => label("Substituir capítulo", "Replace chapter"),
@@ -53,7 +54,7 @@ const copy = {
   preparing: () => label("Preparando imagens...", "Preparing images..."),
   prechecking: (current, total, name) => label(`Pré-verificando ${current}/${total} — ${name}`, `Prechecking ${current}/${total} — ${name}`),
   checking: (current, total, name) => label(`Verificando ${current}/${total} — ${name}`, `Checking ${current}/${total} — ${name}`),
-  processing: (current, total, name) => label(`Processando ${current}/${total} — ${name}`, `Processing ${current}/${total} — ${name}`),
+  processing: (current, total, name) => label(`Redimensionando ${current}/${total} — ${name}`, `Resizing ${current}/${total} — ${name}`),
   uploading: (current, total, name) => label(`Enviando ${current}/${total} — ${name}`, `Uploading ${current}/${total} — ${name}`),
   uploadedLine: (name, size) => label(`${name} enviado (${size}).`, `${name} uploaded (${size}).`),
   overwrittenLine: (name, size) => label(`${name} sobrescrito (${size}).`, `${name} overwritten (${size}).`),
@@ -247,13 +248,23 @@ async function getExistingFileSha(client, path) {
   }
 }
 
+function extensionFromName(name = "") {
+  const clean = String(name || "").trim();
+  const index = clean.lastIndexOf(".");
+  if (index <= 0 || index === clean.length - 1) return "jpg";
+  const extension = clean.slice(index + 1).toLowerCase();
+  if (["jpeg", "jfif"].includes(extension)) return "jpg";
+  if (["png", "webp"].includes(extension)) return extension;
+  return "jpg";
+}
+
 function buildPredictedUploadItems(settings) {
   const images = filterImageFiles(settings.files);
   const total = images.length;
   const jsonFileName = getJsonFileName();
 
   return images.map((file, index) => {
-    const fileName = formatOutputFileName(index, total);
+    const fileName = formatOutputFileName(index, total, extensionFromName(file.name));
     return {
       file,
       fileName,
@@ -334,7 +345,7 @@ async function runUpload({ modal, form, onSave }) {
       addSummaryLine(modal, "ok", copy.noExistingFiles());
     }
 
-    const processed = await processImageFiles(settings.files, {
+    const processed = await resizeImagesKeepingFormat(settings.files, {
       maxWidth: settings.maxWidth,
       quality: settings.quality,
       onProgress: ({ index, total, file }) => {
