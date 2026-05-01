@@ -1,8 +1,9 @@
 import { state, getSavedImgChestToken } from "../state.js";
 import { attr, escapeHtml } from "../utils.js";
 import { toast, setBusy } from "../ui.js";
-import { scrapeImgChestAlbum } from "../imgchest.js";
+import { scrapeImgChestAlbumDetails } from "../imgchest.js";
 import { emptyChapter } from "../cubari.js";
+import { extractChapterNumberFromTitle, normalizeChapterNumber } from "../chapter-number.js";
 import { t } from "../i18n.js";
 
 function label(pt, en) {
@@ -28,7 +29,7 @@ function collectChapterFromModal(form) {
     .filter(Boolean);
 
   return {
-    number: String(formData.get("number") || "").trim(),
+    number: normalizeChapterNumber(formData.get("number") || ""),
     chapter: {
       title: String(formData.get("title") || "").trim(),
       volume: String(formData.get("volume") || ""),
@@ -60,7 +61,7 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
         <div class="drawer-grid chapter-meta-grid">
           <label class="field">
             <span>${t("number")}</span>
-            <input name="number" value="${attr(number)}" placeholder="${attr(t("chapterNumberPlaceholder"))}" required />
+            <input name="number" value="${attr(normalizeChapterNumber(number))}" placeholder="${attr(t("chapterNumberPlaceholder"))}" required />
           </label>
           <label class="field">
             <span>${t("volume")}</span>
@@ -113,6 +114,9 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
   const close = () => modal.remove();
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
+  form.number?.addEventListener("blur", () => {
+    form.number.value = normalizeChapterNumber(form.number.value);
+  });
 
   modal.addEventListener("click", async (event) => {
     const target = event.target;
@@ -121,6 +125,8 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
     if (target.matches("[data-modal-import-imgchest]")) {
       const input = modal.querySelector("[data-modal-imgchest-url]");
       const textarea = modal.querySelector("[name='imagesText']");
+      const numberInput = modal.querySelector("[name='number']");
+      const titleInput = modal.querySelector("[name='title']");
       const albumUrl = input?.value.trim();
       if (!albumUrl) {
         toast(t("pasteImgChestFirst"), "error");
@@ -130,9 +136,22 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
       try {
         setBusy(true);
         target.textContent = t("importing");
-        const links = await scrapeImgChestAlbum(albumUrl, { token });
-        textarea.value = links.join("\n");
-        toast(t("importedImages", { count: links.length }), "success");
+        const details = await scrapeImgChestAlbumDetails(albumUrl, { token });
+        textarea.value = details.images.join("\n");
+
+        const detectedNumber = extractChapterNumberFromTitle(details.title);
+        if (detectedNumber && numberInput) {
+          numberInput.value = detectedNumber;
+        }
+
+        if (details.title && titleInput && !titleInput.value.trim()) {
+          titleInput.value = details.title;
+        }
+
+        const suffix = detectedNumber
+          ? label(` Capítulo detectado: ${detectedNumber}.`, ` Detected chapter: ${detectedNumber}.`)
+          : "";
+        toast(`${t("importedImages", { count: details.images.length })}${suffix}`, "success");
       } catch (error) {
         toast(error.message || String(error), "error");
       } finally {
