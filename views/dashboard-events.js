@@ -26,12 +26,12 @@ export function bindDashboardEvents({ navigateToEditor, navigateToConnect, rende
   bindClick("#change-repo-btn", () => navigateToConnect({ ...state.config }));
 
   document.querySelector("#search-input")?.addEventListener("input", (event) => {
-    const cursorPosition = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
-    state.search = event.currentTarget.value;
+    const nextSearch = event.currentTarget.value;
+    state.search = nextSearch;
     renderDashboard(navigateToEditor, navigateToConnect);
     const searchInput = document.querySelector("#search-input");
     searchInput?.focus();
-    searchInput?.setSelectionRange(cursorPosition, cursorPosition);
+    searchInput?.setSelectionRange(nextSearch.length, nextSearch.length);
   });
 
   document.querySelectorAll("[data-open-file]").forEach((button) => {
