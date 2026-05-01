@@ -1,8 +1,9 @@
 import { state, getSavedImgChestToken, IMG_TOKEN_KEY } from "../state.js";
 import { attr, escapeHtml } from "../utils.js";
 import { toast, setBusy, errorMessage } from "../ui.js";
+import { scrapeImgChestAlbumDetails } from "../imgchest.js";
 import { emptyChapter } from "../cubari.js";
-import { normalizeChapterNumber } from "../chapter-number.js";
+import { extractChapterNumberFromTitle, normalizeChapterNumber } from "../chapter-number.js";
 import { t } from "../i18n.js";
 import { formatBytes } from "../image-processing.js";
 import { filterSupportedLocalImages, SUPPORTED_LOCAL_IMAGE_ACCEPT } from "../batch-chapter-files.js";
@@ -145,6 +146,84 @@ function buildSinglePostTitle(template, { mangaTitle, chapterNumber, chapterTitl
     .trim();
 }
 
+function applyDetectedAlbumMetadata({ form, details }) {
+  const numberInput = form.querySelector("[name='number']");
+  const titleInput = form.querySelector("[name='title']");
+  const detectedNumber = extractChapterNumberFromTitle(details.title);
+
+  if (detectedNumber && numberInput) {
+    numberInput.value = normalizeChapterNumber(detectedNumber);
+  }
+
+  if (details.title && titleInput && !titleInput.value.trim()) {
+    titleInput.value = details.title;
+  }
+
+  return detectedNumber ? normalizeChapterNumber(detectedNumber) : "";
+}
+
+async function importExistingImgChestAlbum({ modal, form, onSave, close, isNew }) {
+  const input = modal.querySelector("[data-existing-imgchest-url]");
+  const albumUrl = input?.value.trim();
+
+  if (!albumUrl) {
+    toast(t("pasteImgChestFirst"), "error");
+    return;
+  }
+
+  const trigger = modal.querySelector("[data-import-existing-imgchest]");
+  const originalText = trigger?.textContent || "";
+  const token = state.config?.imgchestToken || getSavedImgChestToken();
+
+  try {
+    disableForm(form, true);
+    setBusy(true);
+    if (trigger) trigger.textContent = t("importing");
+
+    const details = await scrapeImgChestAlbumDetails(albumUrl, { token });
+    const detectedNumber = applyDetectedAlbumMetadata({ form, details });
+    const textarea = form.querySelector("[name='imagesText']");
+
+    if (textarea) {
+      textarea.value = details.images.join("\n");
+      const suffix = detectedNumber
+        ? label(` Capítulo detectado: ${detectedNumber}.`, ` Detected chapter: ${detectedNumber}.`)
+        : "";
+      toast(`${t("importedImages", { count: details.images.length })}${suffix}`, "success");
+      return;
+    }
+
+    if (!isNew) return;
+
+    const fields = collectBaseChapterFields(form);
+    if (!fields.number) {
+      toast(t("informChapterNumber"), "error");
+      return;
+    }
+
+    onSave({
+      number: fields.number,
+      chapter: {
+        title: fields.title,
+        volume: fields.volume,
+        last_updated: fields.lastUpdated,
+        groups: {
+          [fields.groupName]: details.images,
+        },
+      },
+    });
+
+    toast(t("importedImages", { count: details.images.length }), "success");
+    close();
+  } catch (error) {
+    toast(errorMessage(error), "error");
+  } finally {
+    if (trigger) trigger.textContent = originalText;
+    disableForm(form, false);
+    setBusy(false);
+  }
+}
+
 async function uploadSingleChapterFromModal({ modal, form, onSave, close }) {
   const fields = collectBaseChapterFields(form);
   if (!fields.number) {
@@ -258,15 +337,45 @@ async function uploadSingleChapterFromModal({ modal, form, onSave, close }) {
   }
 }
 
-function renderCreateImagesSection(preferences, savedToken) {
+function renderExistingAlbumImportSection({ isNew }) {
   return `
     <div class="drawer-section-title">
-      <strong>${label("Imagens do Capítulo", "Chapter Images")}</strong>
+      <strong>${label("Importar álbum existente", "Import existing album")}</strong>
+    </div>
+
+    <div class="imgchest-tools compact-imgchest-tools chapter-images-tools">
+      <label class="field imgchest-url-field">
+        <span>${label("URL do Álbum ImgChest", "ImgChest Album URL")}</span>
+        <input data-existing-imgchest-url placeholder="${attr(t("imgChestAlbumPlaceholder"))}" />
+        <p class="hint">${label(
+          isNew
+            ? "Use quando o capítulo já foi enviado ao ImgChest. O Adder só importa os links para o JSON."
+            : "Use para substituir/preencher a lista de URLs abaixo usando um álbum já existente.",
+          isNew
+            ? "Use this when the chapter is already on ImgChest. Adder only imports the links into the JSON."
+            : "Use this to replace/fill the URL list below from an existing album.",
+        )}</p>
+      </label>
+      <div class="inline-tools">
+        <button class="btn ghost small" type="button" data-import-existing-imgchest>
+          ${isNew ? label("Importar URL e Criar", "Import URL and Create") : t("importImgChest")}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCreateImagesSection(preferences, savedToken) {
+  return `
+    ${renderExistingAlbumImportSection({ isNew: true })}
+
+    <div class="drawer-section-title">
+      <strong>${label("Ou enviar imagens locais", "Or upload local images")}</strong>
     </div>
 
     <label class="field">
       <span>${label("Token ImgChest", "ImgChest token")}</span>
-      <input name="imgchestToken" type="password" value="${attr(savedToken)}" required />
+      <input name="imgchestToken" type="password" value="${attr(savedToken)}" />
       <p class="hint">${label("O token é usado direto no navegador porque o Adder é estático.", "The token is used directly in the browser because Adder is static.")}</p>
     </label>
 
@@ -277,7 +386,7 @@ function renderCreateImagesSection(preferences, savedToken) {
 
     <label class="field">
       <span>${label("Selecionar imagens", "Select images")}</span>
-      <input name="chapterImages" type="file" accept="${SUPPORTED_LOCAL_IMAGE_ACCEPT}" multiple required />
+      <input name="chapterImages" type="file" accept="${SUPPORTED_LOCAL_IMAGE_ACCEPT}" multiple />
       <p class="hint">${label("Selecione as páginas do capítulo. A ordem será natural: 1, 2, 10...", "Select the chapter pages. Order will be natural: 1, 2, 10...")}</p>
     </label>
 
@@ -328,6 +437,8 @@ function renderEditImagesSection(images) {
     <div class="drawer-section-title">
       <strong>${t("imagesSection")}</strong>
     </div>
+
+    ${renderExistingAlbumImportSection({ isNew: false })}
 
     <label class="field">
       <span>${label("URLs das Imagens", "Image URLs")}</span>
@@ -398,6 +509,9 @@ export function showChapterEditModal({ number = "", chapter = emptyChapter(), on
     form.number.value = normalizeChapterNumber(form.number.value);
   });
   form.querySelector("input[name='chapterImages']")?.addEventListener("change", () => updateFilePreview(form));
+  modal.querySelector("[data-import-existing-imgchest]")?.addEventListener("click", () => {
+    importExistingImgChestAlbum({ modal, form, onSave, close, isNew });
+  });
   ["privacy", "batchSize", "delayMs", "postTitleTemplate"].forEach((name) => {
     form.querySelector(`[name='${name}']`)?.addEventListener("input", () => saveSingleUploadPreferences(form));
     form.querySelector(`[name='${name}']`)?.addEventListener("change", () => saveSingleUploadPreferences(form));
