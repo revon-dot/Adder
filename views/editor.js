@@ -9,6 +9,7 @@ import { bindChapterButtons } from "./editor-events.js";
 import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
+import { showImgChestBatchUploadModal } from "./imgchest-batch-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 
@@ -17,6 +18,12 @@ function editorSnapshot(fileName, manifest) {
     fileName: String(fileName || ""),
     manifest: normalizeManifest(manifest || emptyManifest()),
   });
+}
+
+function unsavedUploadJsonWarning() {
+  return document.documentElement.lang === "en"
+    ? "Images were uploaded, but the JSON is NOT saved yet. Click Save to GitHub."
+    : "Imagens enviadas, mas o JSON ainda NÃO foi salvo. Clique em Salvar no GitHub.";
 }
 
 function syncAutoFileName() {
@@ -77,6 +84,27 @@ function saveEditorFromButton(navigateToDashboard) {
   saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
 }
 
+function upsertUploadedChapter({ number, chapter, conflictMode }) {
+  if (!state.current.data.chapters) state.current.data.chapters = {};
+  const existingChapter = state.current.data.chapters[number];
+
+  if (existingChapter && conflictMode === "merge") {
+    state.current.data.chapters[number] = {
+      ...existingChapter,
+      title: chapter.title || existingChapter.title || "",
+      volume: chapter.volume || existingChapter.volume || "",
+      last_updated: chapter.last_updated,
+      groups: {
+        ...(existingChapter.groups || {}),
+        ...(chapter.groups || {}),
+      },
+    };
+    return;
+  }
+
+  state.current.data.chapters[number] = chapter;
+}
+
 function addChapterWithDrawer(navigateToDashboard) {
   syncCurrentFromForm();
   showChapterEditModal({
@@ -92,6 +120,20 @@ function addChapterWithDrawer(navigateToDashboard) {
       }
       state.current.data.chapters[number] = chapter;
       renderEditor(navigateToDashboard);
+    },
+  });
+}
+
+function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
+  syncCurrentFromForm();
+  showImgChestBatchUploadModal({
+    onSave: ({ imported, conflictMode }) => {
+      syncCurrentFromForm();
+      imported.forEach(({ number, chapter }) => {
+        upsertUploadedChapter({ number, chapter, conflictMode });
+      });
+      renderEditor(navigateToDashboard);
+      toast(unsavedUploadJsonWarning(), "warning");
     },
   });
 }
@@ -177,6 +219,7 @@ function bindEditorEvents(navigateToDashboard) {
 
   document.querySelector("#save-btn")?.addEventListener("click", () => saveEditorFromButton(navigateToDashboard));
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
+  document.querySelector("#imgchest-batch-upload-btn")?.addEventListener("click", () => addImgChestBatchUploadWithDrawer(navigateToDashboard));
 
   const titleInput = document.querySelector("input[name='title']");
   titleInput?.addEventListener("input", () => {
