@@ -64,7 +64,7 @@ async function collectRepositoryStorage(client, path) {
 
 function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect) {
   try {
-    if (!document.querySelector("#dashboard-root")) return;
+    if (!document.querySelector(".dashboard-header")) return;
     renderDashboardCallback(navigateToEditor, navigateToConnect);
   } catch {
     // Storage numbers are informational. Never let them break the dashboard.
