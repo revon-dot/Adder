@@ -102,11 +102,11 @@ export function renderEditorPage(current, manifest) {
       </form>
       
       <div class="editor-chapter-actions chapter-action-groups">
-        <div class="chapter-action-group">
+        <div class="chapter-action-group chapter-action-single">
           <span class="chapter-action-label">${label("Capítulo único", "Single chapter")}</span>
           <button class="btn primary" id="add-chapter-btn">${label("Adicionar capítulo", "Add chapter")}</button>
         </div>
-        <div class="chapter-action-group">
+        <div class="chapter-action-group chapter-action-batch">
           <span class="chapter-action-label">${label("Em lote", "Batch")}</span>
           <button class="btn ghost" id="imgchest-batch-upload-btn" ${folderUploadButtonAttrs()}>${label("Enviar pasta ao ImgChest", "Upload folder to ImgChest")}</button>
           <button class="btn ghost" id="multi-chapter-import-btn">${label("Importar URLs do ImgChest", "Import ImgChest URLs")}</button>
