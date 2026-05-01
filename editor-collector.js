@@ -31,12 +31,17 @@ export function collectManifestFromEditor(options = {}) {
   };
 }
 
+function chapterBaseNumber(value = "") {
+  const number = Number.parseFloat(String(value || "").replace(",", "."));
+  return Number.isFinite(number) ? Math.floor(number) : null;
+}
+
 export function getNextChapterNumber() {
   const result = collectManifestFromEditor({ silent: true });
   if (!result) return "1";
   const { manifest } = result;
   const numbers = Object.keys(manifest.chapters || {})
-    .map((value) => Number.parseFloat(value))
+    .map(chapterBaseNumber)
     .filter(Number.isFinite);
   return numbers.length ? String(Math.max(...numbers) + 1) : "1";
 }
