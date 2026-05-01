@@ -19,7 +19,7 @@ const copy = {
   continueMode: () => label("Continuar do último capítulo", "Continue from latest chapter"),
   continueModeHint: (number) => label(`O primeiro novo capítulo será ${number}.`, `The first new chapter will be ${number}.`),
   manualMode: () => label("Começar em um número específico", "Start from a specific number"),
-  manualModeHint: () => label("Use isto para preencher capítulos antigos, como 1 até 52.", "Use this to fill older chapters, such as 1 through 52."),
+  manualModeHint: () => label("Use isto para preencher capítulos específicos. Digite o número do capítulo que você começará fazendo o upload.", "Use this to fill specific chapters. Enter the chapter number where the upload should start."),
   startNumber: () => label("Começar em", "Start at"),
   increment: () => label("Incremento", "Increment"),
   titleTemplate: () => label("Título automático", "Automatic title"),
@@ -31,7 +31,8 @@ const copy = {
   conflictHint: () => label("O padrão é cancelar para evitar sobrescrever capítulos por engano.", "The default is cancel to avoid overwriting chapters by mistake."),
   importingTitle: () => label("Importando capítulos...", "Importing chapters..."),
   preparing: () => label("Preparando importação.", "Preparing import."),
-  startImport: () => label("Importar capítulos", "Import chapters"),
+  startImport: () => label("Importar Capítulos", "Import Chapters"),
+  cancel: () => label("Cancelar", "Cancel"),
   pasteLinksFirst: () => label("Cole pelo menos um link ImgChest.", "Paste at least one ImgChest link."),
   invalidStartNumber: () => label("Informe um número inicial válido.", "Enter a valid start number."),
   invalidIncrement: () => label("O incremento precisa ser maior que zero.", "The increment must be greater than zero."),
@@ -69,6 +70,10 @@ function getHighestNumericChapter(chapters = {}) {
     .filter(Number.isFinite);
 
   return numbers.length ? Math.max(...numbers) : 0;
+}
+
+function getNextChapterNumber() {
+  return getHighestNumericChapter(state.current?.data?.chapters || {}) + 1;
 }
 
 function formatChapterNumber(value) {
@@ -125,10 +130,17 @@ function selectedNumberingMode(form) {
 function updateManualStartState(form) {
   const startInput = form.querySelector("input[name='startNumber']");
   if (!startInput) return;
-  startInput.disabled = selectedNumberingMode(form) !== "manual";
+
+  const isManual = selectedNumberingMode(form) === "manual";
+  if (!isManual) {
+    startInput.value = formatChapterNumber(getNextChapterNumber());
+  }
+  startInput.disabled = !isManual;
+  startInput.setAttribute("aria-disabled", String(!isManual));
 }
 
 async function runImport({ modal, form, onSave }) {
+  updateManualStartState(form);
   const formData = new FormData(form);
   const urls = uniqueLines(formData.get("albumUrls"));
   const mode = selectedNumberingMode(form);
@@ -235,7 +247,7 @@ async function runImport({ modal, form, onSave }) {
 }
 
 export function showMultiChapterUploadModal({ onSave }) {
-  const nextNumber = getHighestNumericChapter(state.current?.data?.chapters || {}) + 1;
+  const nextNumber = getNextChapterNumber();
   const modal = document.createElement("div");
   modal.className = "drawer-backdrop";
   modal.innerHTML = `
@@ -248,81 +260,83 @@ export function showMultiChapterUploadModal({ onSave }) {
         <button class="btn ghost small" type="button" data-close-modal>${t("close")}</button>
       </div>
 
-      <form id="multi-chapter-form" class="drawer-form" autocomplete="off">
-        <label class="field">
-          <span>${copy.albumUrls()}</span>
-          <textarea class="multi-chapter-textarea" name="albumUrls" placeholder="${attr(copy.albumUrlsPlaceholder())}" required></textarea>
-          <p class="hint">${copy.albumUrlsHint()}</p>
-        </label>
-
-        <div class="drawer-section-title">
-          <strong>${copy.numbering()}</strong>
-        </div>
-
-        <div class="multi-chapter-options">
-          <label class="multi-chapter-option">
-            <input type="radio" name="numberingMode" value="continue" checked />
-            <span>
-              <strong>${copy.continueMode()}</strong>
-              <span>${copy.continueModeHint(formatChapterNumber(nextNumber))}</span>
-            </span>
-          </label>
-          <label class="multi-chapter-option">
-            <input type="radio" name="numberingMode" value="manual" />
-            <span>
-              <strong>${copy.manualMode()}</strong>
-              <span>${copy.manualModeHint()}</span>
-            </span>
-          </label>
-        </div>
-
-        <div class="drawer-grid">
+      <form id="multi-chapter-form" class="drawer-form multi-chapter-form" autocomplete="off">
+        <div class="multi-chapter-scroll-area">
           <label class="field">
-            <span>${copy.startNumber()}</span>
-            <input name="startNumber" type="number" step="0.001" value="${attr(formatChapterNumber(nextNumber))}" />
+            <span>${copy.albumUrls()}</span>
+            <textarea class="multi-chapter-textarea" name="albumUrls" placeholder="${attr(copy.albumUrlsPlaceholder())}" required></textarea>
+            <p class="hint">${copy.albumUrlsHint()}</p>
           </label>
-          <label class="field">
-            <span>${copy.increment()}</span>
-            <input name="increment" type="number" step="0.001" min="0.001" value="1" />
-          </label>
-        </div>
 
-        <div class="drawer-grid">
-          <label class="field">
-            <span>${t("group")}</span>
-            <input name="groupName" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
-          </label>
-          <label class="field">
-            <span>${copy.titleTemplate()}</span>
-            <input name="titleTemplate" placeholder="${attr(copy.titleTemplatePlaceholder())}" />
-          </label>
-        </div>
-
-        <label class="field">
-          <span>${copy.conflictMode()}</span>
-          <select name="conflictMode">
-            <option value="cancel">${copy.conflictCancel()}</option>
-            <option value="skip">${copy.conflictSkip()}</option>
-            <option value="replace">${copy.conflictReplace()}</option>
-          </select>
-          <p class="hint">${copy.conflictHint()}</p>
-        </label>
-
-        <section class="multi-chapter-progress" data-multi-progress hidden>
-          <div class="multi-chapter-progress-head">
-            <div class="multi-chapter-spinner" aria-hidden="true"></div>
-            <div>
-              <h3>${copy.importingTitle()}</h3>
-              <p data-multi-status>${copy.preparing()}</p>
-            </div>
+          <div class="drawer-section-title">
+            <strong>${copy.numbering()}</strong>
           </div>
-          <div class="multi-chapter-bar" aria-hidden="true"><span data-multi-bar></span></div>
-          <div class="multi-chapter-summary" data-multi-summary></div>
-        </section>
 
-        <div class="drawer-actions">
+          <div class="multi-chapter-options">
+            <label class="multi-chapter-option">
+              <input type="radio" name="numberingMode" value="continue" checked />
+              <span>
+                <strong>${copy.continueMode()}</strong>
+                <span>${copy.continueModeHint(formatChapterNumber(nextNumber))}</span>
+              </span>
+            </label>
+            <label class="multi-chapter-option">
+              <input type="radio" name="numberingMode" value="manual" />
+              <span>
+                <strong>${copy.manualMode()}</strong>
+                <span>${copy.manualModeHint()}</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="drawer-grid">
+            <label class="field">
+              <span>${copy.startNumber()}</span>
+              <input name="startNumber" type="number" step="0.001" value="${attr(formatChapterNumber(nextNumber))}" />
+            </label>
+            <label class="field">
+              <span>${copy.increment()}</span>
+              <input name="increment" type="number" step="0.001" min="0.001" value="1" />
+            </label>
+          </div>
+
+          <div class="drawer-grid">
+            <label class="field">
+              <span>${t("group")}</span>
+              <input name="groupName" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
+            </label>
+            <label class="field">
+              <span>${copy.titleTemplate()}</span>
+              <input name="titleTemplate" placeholder="${attr(copy.titleTemplatePlaceholder())}" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>${copy.conflictMode()}</span>
+            <select name="conflictMode">
+              <option value="cancel">${copy.conflictCancel()}</option>
+              <option value="skip">${copy.conflictSkip()}</option>
+              <option value="replace">${copy.conflictReplace()}</option>
+            </select>
+            <p class="hint">${copy.conflictHint()}</p>
+          </label>
+
+          <section class="multi-chapter-progress" data-multi-progress hidden>
+            <div class="multi-chapter-progress-head">
+              <div class="multi-chapter-spinner" aria-hidden="true"></div>
+              <div>
+                <h3>${copy.importingTitle()}</h3>
+                <p data-multi-status>${copy.preparing()}</p>
+              </div>
+            </div>
+            <div class="multi-chapter-bar" aria-hidden="true"><span data-multi-bar></span></div>
+            <div class="multi-chapter-summary" data-multi-summary></div>
+          </section>
+        </div>
+
+        <div class="drawer-actions multi-chapter-actions">
           <button class="btn primary" type="submit">${copy.startImport()}</button>
-          <button class="btn ghost" type="button" data-close-modal>${t("cancel")}</button>
+          <button class="btn ghost" type="button" data-close-modal>${copy.cancel()}</button>
         </div>
       </form>
     </aside>
