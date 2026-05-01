@@ -4,13 +4,12 @@ import { toast, setBusy } from "../ui.js";
 import { t } from "../i18n.js";
 import { formatBytes } from "../image-processing.js";
 import { collectLocalChapterStats, SUPPORTED_LOCAL_IMAGE_ACCEPT } from "../batch-chapter-files.js";
-import { imgChestUploadDefaults, uploadChapterToImgChest } from "../imgchest-api.js";
+import { imgChestUploadDefaults, uploadChapterToImgChest, deleteImgChestPost } from "../imgchest-api.js";
 
 const PREFERENCES_KEY = "adder-pages:imgchest-batch-upload-preferences";
-const MAX_BATCH_CHAPTERS = 5;
-const LARGE_BATCH_CHAPTERS = 5;
-const LARGE_BATCH_IMAGES = 300;
-const LARGE_BATCH_BYTES = 500 * 1024 * 1024;
+const LARGE_BATCH_CHAPTERS = 10;
+const LARGE_BATCH_IMAGES = 500;
+const LARGE_BATCH_BYTES = 700 * 1024 * 1024;
 
 function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
@@ -24,7 +23,11 @@ const copy = {
   tokenHint: () => label("Como o Adder é estático, o token é usado diretamente no navegador. Não use em computador compartilhado.", "Because Adder is static, the token is used directly in the browser. Do not use it on a shared computer."),
   rememberToken: () => label("Salvar token neste navegador", "Save token in this browser"),
   folderInput: () => label("Pasta da obra", "Work folder"),
-  folderHint: () => label(`Selecione a pasta da obra com até ${MAX_BATCH_CHAPTERS} subpastas de capítulos por envio, como 0085/, 0086/, 0097.5/.`, `Select the work folder with up to ${MAX_BATCH_CHAPTERS} chapter subfolders per upload, such as 0085/, 0086/, 0097.5/.`),
+  folderHint: () => label("Selecione a pasta da obra. Cada subpasta numerada vira um capítulo, como 0085/, 0086/ ou 0097.5/.", "Select the work folder. Each numbered subfolder becomes a chapter, such as 0085/, 0086/, or 0097.5/."),
+  safetyHint: () => label(
+    `Padrão seguro fixo: ${imgChestUploadDefaults.batchSize} imagens por request, ${imgChestUploadDefaults.delayMs / 1000}s entre requests e apenas 1 retry. Se um capítulo falhar, o Adder cancela tudo, tenta apagar os posts criados e não altera o JSON.`,
+    `Fixed safe default: ${imgChestUploadDefaults.batchSize} images per request, ${imgChestUploadDefaults.delayMs / 1000}s between requests, and only 1 retry. If a chapter fails, Adder cancels everything, tries to delete created posts, and does not change the JSON.`,
+  ),
   privacy: () => label("Privacidade", "Privacy"),
   hidden: () => label("hidden", "hidden"),
   public: () => label("public", "public"),
@@ -35,8 +38,6 @@ const copy = {
   titleTemplateHint: () => label("Variáveis: {album}, {folder}, {chapter}.", "Variables: {album}, {folder}, {chapter}."),
   chapterTitleTemplate: () => label("Título automático no JSON", "Automatic JSON title"),
   chapterTitleTemplatePlaceholder: () => label("opcional, ex: Capítulo {chapter}", "optional, e.g. Chapter {chapter}"),
-  batchSize: () => label("Imagens por request", "Images per request"),
-  delay: () => label("Delay entre requests (ms)", "Delay between requests (ms)"),
   conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
   conflictCancel: () => label("Cancelar tudo", "Cancel all"),
   conflictSkip: () => label("Pular existentes", "Skip existing"),
@@ -48,8 +49,7 @@ const copy = {
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
   duplicateChapter: (number, folders) => label(`Capítulo ${number} aparece em mais de uma pasta: ${folders.join(" | ")}`, `Chapter ${number} appears in more than one folder: ${folders.join(" | ")}`),
   duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
-  tooManyChapters: (count) => label(`O upload em lote aceita no máximo ${MAX_BATCH_CHAPTERS} capítulos por envio. Foram detectados ${count}. Selecione uma pasta menor ou envie em partes.`, `Batch upload accepts at most ${MAX_BATCH_CHAPTERS} chapters per upload. ${count} were detected. Select a smaller folder or upload in parts.`),
-  largeBatchWarning: () => label("Lote grande. O upload pode demorar e acionar o limite da API.", "Large batch. Upload may take a while and trigger API rate limits."),
+  largeBatchWarning: () => label("Lote grande. O upload pode demorar bastante, mas o Adder vai respeitar o ritmo seguro automaticamente.", "Large batch. Upload may take a while, but Adder will automatically use the safe pace."),
   confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size}. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size}. Continue?`),
   missingToken: () => label("Informe um token do ImgChest.", "Enter an ImgChest token."),
   noFiles: () => label("Selecione uma pasta com imagens.", "Select a folder with images."),
@@ -58,16 +58,20 @@ const copy = {
   confirmReplace: (count) => label(`${count} capítulo(s) existente(s) serão substituídos/mesclados no JSON. Continuar?`, `${count} existing chapter(s) will be replaced/merged in the JSON. Continue?`),
   preparing: () => label("Preparando lote...", "Preparing batch..."),
   creating: (current, total, number) => label(`Criando post do capítulo ${number} (${current}/${total})`, `Creating post for chapter ${number} (${current}/${total})`),
-  addingBatch: (number, batch, total) => label(`Capítulo ${number}: adicionando batch ${batch}/${total}`, `Chapter ${number}: adding batch ${batch}/${total}`),
+  addingBatch: (number, batch, total) => label(`Capítulo ${number}: adicionando request ${batch}/${total}`, `Chapter ${number}: adding request ${batch}/${total}`),
   refreshing: (number) => label(`Capítulo ${number}: buscando links finais`, `Chapter ${number}: fetching final links`),
-  rateLimit: (seconds, attempt, max) => label(`Limite da API atingido. Esperando ${seconds}s antes de tentar de novo (${attempt}/${max}).`, `API rate limit reached. Waiting ${seconds}s before retrying (${attempt}/${max}).`),
-  uploadIntro: (albumName, chapters, images, size) => label(`${albumName}: ${chapters} capítulo(s) detectado(s), ${images} imagem(ns), ${size}.`, `${albumName}: ${chapters} chapter(s) detected, ${images} image(s), ${size}.`),
-  uploadStart: (chapters, batchSize, delayMs) => label(`Iniciando upload de ${chapters} capítulo(s). Batch: ${batchSize}. Delay: ${delayMs}ms.`, `Starting upload of ${chapters} chapter(s). Batch: ${batchSize}. Delay: ${delayMs}ms.`),
+  rollingBack: (number) => label(`Capítulo ${number}: apagando post parcial do ImgChest`, `Chapter ${number}: deleting partial ImgChest post`),
+  rateLimit: (seconds, attempt, max) => label(`Limite da API atingido. Esperando ${seconds}s antes do único retry (${attempt}/${max}).`, `API rate limit reached. Waiting ${seconds}s before the single retry (${attempt}/${max}).`),
+  uploadIntro: (albumName, chapters, images, size) => label(`${albumName}: ${chapters} capítulo(s), ${images} imagem(ns), ${size}.`, `${albumName}: ${chapters} chapter(s), ${images} image(s), ${size}.`),
+  uploadStart: (chapters) => label(`Iniciando upload de ${chapters} capítulo(s).`, `Starting upload of ${chapters} chapter(s).`),
   creatingPostWithImages: (number, images) => label(`Capítulo ${number}: criando post no ImgChest com ${images} imagem(ns).`, `Chapter ${number}: creating ImgChest post with ${images} image(s).`),
   uploadedChapter: (number, count, url) => label(`Capítulo ${number}: ${count} imagens enviadas — ${url}`, `Chapter ${number}: ${count} images uploaded — ${url}`),
   skippedChapter: (number) => label(`Capítulo ${number} pulado porque já existe.`, `Chapter ${number} skipped because it already exists.`),
   failedChapter: (number, message) => label(`Capítulo ${number}: falhou — ${message}`, `Chapter ${number}: failed — ${message}`),
+  cleanup: () => label("Falha detectada. Apagando posts já criados neste lote e mantendo o JSON intacto...", "Failure detected. Deleting posts created in this batch and keeping the JSON untouched..."),
+  cleanupPost: (number) => label(`Apagando post do capítulo ${number}.`, `Deleting post for chapter ${number}.`),
   nothingImported: () => label("Nenhum capítulo foi importado.", "No chapters were imported."),
+  canceledAtomic: () => label("Upload cancelado. Nada foi escrito no JSON.", "Upload canceled. Nothing was written to the JSON."),
   done: (count) => label(`${count} capítulos importados. Clique em Salvar no GitHub para gravar o JSON.`, `${count} chapters imported. Click Save to GitHub to write the JSON.`),
   summary: () => label("Resumo", "Summary"),
   console: () => label("Console de upload", "Upload console"),
@@ -76,7 +80,7 @@ const copy = {
   startUpload: () => label("Enviar lote para ImgChest", "Upload batch to ImgChest"),
   close: () => t("close") || label("Fechar", "Close"),
   cancel: () => t("cancel") || label("Cancelar", "Cancel"),
-  preferencesHint: () => label(`O Adder lembra privacidade, batch, delay, grupo, templates e modo de conflito neste navegador. Limite por envio: ${MAX_BATCH_CHAPTERS} capítulos.`, `Adder remembers privacy, batch, delay, group, templates, and conflict mode in this browser. Limit per upload: ${MAX_BATCH_CHAPTERS} chapters.`),
+  preferencesHint: () => label("O Adder lembra privacidade, grupo, templates e modo de conflito neste navegador. Batch/delay/retry são fixos para proteger contra rate limit.", "Adder remembers privacy, group, templates, and conflict mode in this browser. Batch/delay/retry are fixed to protect against rate limits."),
 };
 
 function loadPreferences() {
@@ -91,8 +95,6 @@ function savePreferences(form) {
   try {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify({
       privacy: String(form.privacy?.value || imgChestUploadDefaults.privacy),
-      batchSize: String(form.batchSize?.value || imgChestUploadDefaults.batchSize),
-      delayMs: String(form.delayMs?.value || imgChestUploadDefaults.delayMs),
       conflictMode: String(form.conflictMode?.value || "skip"),
       groupName: String(form.groupName?.value || ""),
       titleTemplate: String(form.titleTemplate?.value || "{album} {chapter}"),
@@ -126,10 +128,6 @@ function isLargeBatch(stats) {
   return stats.chapters.length >= LARGE_BATCH_CHAPTERS || stats.imageCount > LARGE_BATCH_IMAGES || stats.size > LARGE_BATCH_BYTES;
 }
 
-function isOverChapterLimit(stats) {
-  return stats.chapters.length > MAX_BATCH_CHAPTERS;
-}
-
 function updateSelectionPreview(form) {
   const preview = form.querySelector("[data-imgchest-selection]");
   if (!preview) return;
@@ -145,11 +143,10 @@ function updateSelectionPreview(form) {
   const remaining = Math.max(0, stats.chapters.length - 8);
   const skipped = stats.skipped.slice(0, 5).map((folder) => copy.skipNoNumber(folder)).join("\n");
   const duplicates = stats.duplicates.map((item) => copy.duplicateChapter(item.number, item.folders)).join("\n");
-  const limitWarning = isOverChapterLimit(stats) ? `\n${copy.tooManyChapters(stats.chapters.length)}` : "";
-  const warning = !limitWarning && isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
+  const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
 
-  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${limitWarning}${warning}`;
-  preview.classList.toggle("warning", isOverChapterLimit(stats) || isLargeBatch(stats) || Boolean(stats.duplicates.length));
+  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
+  preview.classList.toggle("warning", isLargeBatch(stats) || Boolean(stats.duplicates.length));
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -205,9 +202,6 @@ function disableForm(form, disabled) {
 
 function collectSettings(form) {
   const formData = new FormData(form);
-  const batchSize = Math.min(20, Math.max(1, Number.parseInt(formData.get("batchSize"), 10) || imgChestUploadDefaults.batchSize));
-  const delayMs = Math.max(0, Number.parseInt(formData.get("delayMs"), 10) || imgChestUploadDefaults.delayMs);
-
   return {
     token: String(formData.get("token") || "").trim(),
     rememberToken: Boolean(formData.get("rememberToken")),
@@ -216,8 +210,6 @@ function collectSettings(form) {
     titleTemplate: String(formData.get("titleTemplate") || "{album} {chapter}").trim() || "{album} {chapter}",
     chapterTitleTemplate: String(formData.get("chapterTitleTemplate") || "").trim(),
     conflictMode: String(formData.get("conflictMode") || "skip"),
-    batchSize,
-    delayMs,
   };
 }
 
@@ -234,6 +226,20 @@ function saveTokenPreference(settings) {
     }
   } catch {
     // Ignore localStorage errors.
+  }
+}
+
+async function cleanupImportedPosts({ modal, token, imported }) {
+  if (!imported.length) return;
+  addConsoleLine(modal, "warn", copy.cleanup());
+  addSummaryLine(modal, "skip", copy.cleanup());
+
+  for (const item of [...imported].reverse()) {
+    if (!item.postId) continue;
+    const message = copy.cleanupPost(item.number);
+    addConsoleLine(modal, "warn", message);
+    addSummaryLine(modal, "skip", message);
+    await deleteImgChestPost({ token, postId: item.postId, retry: { maxRetries: 1 } });
   }
 }
 
@@ -259,12 +265,6 @@ async function runUpload({ modal, form, onSave }) {
 
   if (stats.duplicates.length) {
     toast(copy.duplicateBlocked(), "error");
-    return false;
-  }
-
-  if (isOverChapterLimit(stats)) {
-    toast(copy.tooManyChapters(stats.chapters.length), "error");
-    updateSelectionPreview(form);
     return false;
   }
 
@@ -309,12 +309,13 @@ async function runUpload({ modal, form, onSave }) {
   setBusy(true);
   setProgress(modal, { done: 0, total: chaptersToUpload.length, text: copy.preparing() });
   updateConsoleStats(modal, { processed: 0, total: chaptersToUpload.length, skipped: skippedBeforeUpload.length });
+  addConsoleLine(modal, "info", copy.safetyHint());
   addConsoleLine(modal, "info", copy.uploadIntro(stats.albumName, stats.chapters.length, stats.imageCount, formatBytes(stats.size)));
   skippedBeforeUpload.forEach((number) => addConsoleLine(modal, "warn", copy.skippedChapter(number)));
-  addConsoleLine(modal, "info", copy.uploadStart(chaptersToUpload.length, settings.batchSize, settings.delayMs));
+  addConsoleLine(modal, "info", copy.uploadStart(chaptersToUpload.length));
 
   const imported = [];
-  const failed = [];
+  let failed = null;
 
   try {
     for (let index = 0; index < chaptersToUpload.length; index += 1) {
@@ -334,11 +335,7 @@ async function runUpload({ modal, form, onSave }) {
           chapterGroup,
           titleTemplate: settings.titleTemplate,
           privacy: settings.privacy,
-          batchSize: settings.batchSize,
           retry: {
-            delayMs: settings.delayMs,
-            rateLimitWaitMs: imgChestUploadDefaults.rateLimitWaitMs,
-            maxRetries: imgChestUploadDefaults.maxRetries,
             onRateLimit: ({ waitMs, attempt, maxRetries }) => {
               const message = copy.rateLimit(Math.ceil(waitMs / 1000), attempt, maxRetries);
               addSummaryLine(modal, "skip", message);
@@ -372,6 +369,15 @@ async function runUpload({ modal, form, onSave }) {
                 text: message,
               });
             }
+            if (phase === "rollback") {
+              const message = copy.rollingBack(chapterGroup.number);
+              addConsoleLine(modal, "warn", message);
+              setProgress(modal, {
+                done: index,
+                total: chaptersToUpload.length,
+                text: message,
+              });
+            }
           },
         });
 
@@ -393,10 +399,11 @@ async function runUpload({ modal, form, onSave }) {
         addSummaryLine(modal, "ok", successMessage);
         addConsoleLine(modal, "success", successMessage);
       } catch (error) {
-        failed.push({ number: chapterGroup.number, error });
+        failed = { number: chapterGroup.number, error };
         const errorText = copy.failedChapter(chapterGroup.number, error.message || String(error));
         addSummaryLine(modal, "fail", errorText);
         addConsoleLine(modal, "error", errorText);
+        break;
       }
 
       setProgress(modal, {
@@ -408,9 +415,17 @@ async function runUpload({ modal, form, onSave }) {
         processed: index + 1,
         total: chaptersToUpload.length,
         ok: imported.length,
-        failed: failed.length,
+        failed: failed ? 1 : 0,
         skipped: skippedBeforeUpload.length,
       });
+    }
+
+    if (failed) {
+      await cleanupImportedPosts({ modal, token: settings.token, imported });
+      addConsoleLine(modal, "error", copy.canceledAtomic());
+      addSummaryLine(modal, "fail", copy.canceledAtomic());
+      toast(copy.canceledAtomic(), "error");
+      return false;
     }
 
     if (!imported.length) {
@@ -419,12 +434,14 @@ async function runUpload({ modal, form, onSave }) {
       return false;
     }
 
-    onSave({ imported, failed, conflictMode: settings.conflictMode });
-    addConsoleLine(modal, failed.length ? "warn" : "success", copy.done(imported.length));
+    onSave({ imported, failed: [], conflictMode: settings.conflictMode });
+    addConsoleLine(modal, "success", copy.done(imported.length));
     toast(copy.done(imported.length), "success");
     return true;
   } catch (error) {
+    await cleanupImportedPosts({ modal, token: settings.token, imported });
     addConsoleLine(modal, "error", error.message || String(error));
+    addConsoleLine(modal, "error", copy.canceledAtomic());
     toast(error.message || String(error), "error");
     return false;
   } finally {
@@ -472,6 +489,10 @@ export function showImgChestBatchUploadModal({ onSave }) {
             <strong data-imgchest-selection>${copy.selectionEmpty()}</strong>
           </div>
 
+          <div class="notice">
+            <strong>${copy.safetyHint()}</strong>
+          </div>
+
           <div class="drawer-grid chapter-meta-grid">
             <label class="field">
               <span>${copy.privacy()}</span>
@@ -484,14 +505,6 @@ export function showImgChestBatchUploadModal({ onSave }) {
             <label class="field">
               <span>${copy.group()}</span>
               <input name="groupName" value="${attr(preferences.groupName || "")}" placeholder="${attr(t("emptyGroupPlaceholder"))}" />
-            </label>
-            <label class="field">
-              <span>${copy.batchSize()}</span>
-              <input name="batchSize" type="number" min="1" max="20" step="1" value="${attr(preferences.batchSize || imgChestUploadDefaults.batchSize)}" />
-            </label>
-            <label class="field">
-              <span>${copy.delay()}</span>
-              <input name="delayMs" type="number" min="0" step="50" value="${attr(preferences.delayMs || imgChestUploadDefaults.delayMs)}" />
             </label>
           </div>
 
@@ -555,8 +568,6 @@ export function showImgChestBatchUploadModal({ onSave }) {
   form.folder?.addEventListener("change", () => updateSelectionPreview(form));
   form.privacy?.addEventListener("change", remember);
   form.groupName?.addEventListener("input", remember);
-  form.batchSize?.addEventListener("input", remember);
-  form.delayMs?.addEventListener("input", remember);
   form.titleTemplate?.addEventListener("input", remember);
   form.chapterTitleTemplate?.addEventListener("input", remember);
   form.conflictMode?.addEventListener("change", remember);
