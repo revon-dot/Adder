@@ -6,6 +6,7 @@ const DELETE_URL_BASE = "https://imgchest.com/delete";
 const RATE_LIMIT_BACKOFF_MS = [60000];
 
 let imgChestCooldownUntil = 0;
+let imgChestUploadedImagesSinceMilestone = 0;
 
 function label(pt, en) {
   return state.lang === "en-US" ? en : pt;
@@ -16,6 +17,8 @@ export const imgChestUploadDefaults = {
   batchSize: 10,
   delayMs: 10000,
   chapterDelayMs: 90000,
+  imageMilestoneLimit: 200,
+  imageMilestoneCooldownMs: 180000,
   rateLimitWaitMs: 60000,
   maxRateLimitWaitMs: 60000,
   maxRetries: 2,
@@ -106,14 +109,10 @@ function parseRetryAfterMs(value = "") {
   const clean = String(value || "").trim();
   if (!clean) return 0;
 
-  if (/^\d+$/.test(clean)) {
-    return Number(clean) * 1000;
-  }
+  if (/^\d+$/.test(clean)) return Number(clean) * 1000;
 
   const dateMs = Date.parse(clean);
-  if (Number.isFinite(dateMs)) {
-    return Math.max(0, dateMs - Date.now());
-  }
+  if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
 
   return 0;
 }
@@ -122,8 +121,6 @@ function parseRateLimitResetMs(value = "") {
   const number = Number(String(value || "").trim());
   if (!Number.isFinite(number) || number <= 0) return 0;
 
-  // APIs commonly return X-RateLimit-Reset either as Unix seconds, Unix milliseconds,
-  // or as a relative number of seconds. Support all three shapes defensively.
   if (number > 1_000_000_000_000) return Math.max(0, number - Date.now());
   if (number > 1_000_000_000) return Math.max(0, (number * 1000) - Date.now());
   return number * 1000;
@@ -197,6 +194,27 @@ async function waitAfterSuccessfulResponse(response, delayMs, options = {}) {
   await sleep(delayMs);
 }
 
+async function waitAfterImageMilestone({ imageCount, postId, title, onStatus }) {
+  const limit = imgChestUploadDefaults.imageMilestoneLimit;
+  const waitMs = imgChestUploadDefaults.imageMilestoneCooldownMs;
+  if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(waitMs) || waitMs <= 0) return;
+
+  imgChestUploadedImagesSinceMilestone += Number(imageCount) || 0;
+  if (imgChestUploadedImagesSinceMilestone < limit) return;
+
+  onStatus?.({
+    phase: "imageMilestoneCooldown",
+    postId,
+    title,
+    waitMs,
+    uploadedImagesSinceMilestone: imgChestUploadedImagesSinceMilestone,
+    imageMilestoneLimit: limit,
+  });
+
+  imgChestUploadedImagesSinceMilestone = imgChestUploadedImagesSinceMilestone % limit;
+  await sleep(waitMs);
+}
+
 function decorateHttpError(error, response, payload) {
   error.status = response.status;
   error.payload = payload;
@@ -217,9 +235,6 @@ function buildRateLimitError({ maxRetries, lastRateLimitInfo }) {
 }
 
 export async function requestWithImgChestRetry(requestFactory, options = {}) {
-  // Produto: o Adder v3 não deixa o usuário acelerar o ImgChest por acidente.
-  // Todos os fluxos, inclusive capítulo único, usam 10 imagens/request,
-  // 10s entre requests e apenas 1 retry real em 429.
   const delayMs = imgChestUploadDefaults.delayMs;
   const rateLimitWaitMs = imgChestUploadDefaults.rateLimitWaitMs;
   const maxRateLimitWaitMs = imgChestUploadDefaults.maxRateLimitWaitMs;
@@ -335,7 +350,7 @@ export function extractImgChestImageUrlsFromPayload(payload = {}) {
   return urls;
 }
 
-export async function createImgChestPost({ token, title, images, privacy, anonymous = false, nsfw = false, retry = {} } = {}) {
+export async function createImgChestPost({ token, title, images, privacy, anonymous = false, retry = {} } = {}) {
   const clean = cleanToken(token);
   if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
   if (!Array.isArray(images) || !images.length) throw new Error(label("Nenhuma imagem para enviar ao ImgChest.", "No images to upload to ImgChest."));
@@ -348,7 +363,6 @@ export async function createImgChestPost({ token, title, images, privacy, anonym
         title: String(title || "").trim(),
         privacy: cleanPrivacy(privacy),
         ...(anonymous ? { anonymous: "1" } : {}),
-        ...(nsfw ? { nsfw: "1" } : {}),
       }),
     }),
     retry,
@@ -373,7 +387,7 @@ export async function addImagesToImgChestPost({ token, postId, images, retry = {
 
 export async function getImgChestPost({ token, postId, retry = {} } = {}) {
   const clean = cleanToken(token);
-  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest token."));
+  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
   if (!postId) throw new Error(label("ID do post ImgChest ausente.", "Missing ImgChest post ID."));
 
   return requestWithImgChestRetry(
@@ -499,6 +513,8 @@ export async function uploadChapterToImgChest({
         `Chapter ${chapterGroup.number}: the API returned ${finalUrls.length} link(s), but ${expectedCount} image(s) were expected.`,
       ));
     }
+
+    await waitAfterImageMilestone({ imageCount: expectedCount, postId, title, onStatus });
 
     onStatus?.({
       phase: "chapterCooldown",
