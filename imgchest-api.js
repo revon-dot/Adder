@@ -2,7 +2,8 @@ import { state } from "./state.js";
 
 const API_BASE = "https://api.imgchest.com/v1";
 const POST_URL_BASE = "https://imgchest.com/p";
-const RATE_LIMIT_BACKOFF_MS = [60000, 90000, 120000, 180000, 300000];
+const DELETE_URL_BASE = "https://imgchest.com/delete";
+const RATE_LIMIT_BACKOFF_MS = [60000];
 
 let imgChestCooldownUntil = 0;
 
@@ -12,11 +13,12 @@ function label(pt, en) {
 
 export const imgChestUploadDefaults = {
   privacy: "hidden",
-  batchSize: 20,
-  delayMs: 2500,
-  rateLimitWaitMs: 90000,
-  maxRateLimitWaitMs: 300000,
-  maxRetries: 10,
+  batchSize: 10,
+  delayMs: 6000,
+  rateLimitWaitMs: 60000,
+  maxRateLimitWaitMs: 60000,
+  maxRetries: 2,
+  deletePartialPostOnFailure: true,
 };
 
 function sleep(ms) {
@@ -36,12 +38,12 @@ function toPositiveInt(value, fallback) {
   return Number.isFinite(number) && number > 0 ? number : fallback;
 }
 
-function normalizeBatchSize(value = imgChestUploadDefaults.batchSize) {
-  return Math.min(20, Math.max(1, toPositiveInt(value, imgChestUploadDefaults.batchSize)));
+function normalizeBatchSize() {
+  return imgChestUploadDefaults.batchSize;
 }
 
-function chunkList(items = [], size = imgChestUploadDefaults.batchSize) {
-  const chunkSize = normalizeBatchSize(size);
+function chunkList(items = []) {
+  const chunkSize = normalizeBatchSize();
   const chunks = [];
   for (let index = 0; index < items.length; index += chunkSize) {
     chunks.push(items.slice(index, index + chunkSize));
@@ -173,7 +175,7 @@ function rateLimitWaitMsForAttempt({ attempt, rateLimitWaitMs, maxRateLimitWaitM
 }
 
 async function waitAfterSuccessfulResponse(response, delayMs, options = {}) {
-  const maxRateLimitWaitMs = toPositiveInt(options.maxRateLimitWaitMs, imgChestUploadDefaults.maxRateLimitWaitMs);
+  const maxRateLimitWaitMs = imgChestUploadDefaults.maxRateLimitWaitMs;
   const rateLimitInfo = rateLimitInfoFromResponse(response);
 
   if (rateLimitInfo.remaining !== null && rateLimitInfo.remaining <= 1) {
@@ -202,11 +204,25 @@ function decorateHttpError(error, response, payload) {
   return error;
 }
 
+function buildRateLimitError({ maxRetries, lastRateLimitInfo }) {
+  const error = new Error(label(
+    `ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). O upload foi cancelado e o post parcial será removido quando possível.`,
+    `ImgChest API stayed rate-limited after ${maxRetries} attempt(s). Upload was canceled and the partial post will be removed when possible.`,
+  ));
+  error.status = 429;
+  error.rateLimited = true;
+  error.rateLimitInfo = lastRateLimitInfo;
+  return error;
+}
+
 export async function requestWithImgChestRetry(requestFactory, options = {}) {
-  const delayMs = toPositiveInt(options.delayMs, imgChestUploadDefaults.delayMs);
-  const rateLimitWaitMs = toPositiveInt(options.rateLimitWaitMs, imgChestUploadDefaults.rateLimitWaitMs);
-  const maxRateLimitWaitMs = toPositiveInt(options.maxRateLimitWaitMs, imgChestUploadDefaults.maxRateLimitWaitMs);
-  const maxRetries = toPositiveInt(options.maxRetries, imgChestUploadDefaults.maxRetries);
+  // Produto: o Adder v3 não deixa o usuário acelerar o ImgChest por acidente.
+  // Todos os fluxos, inclusive capítulo único, usam 10 imagens/request,
+  // 6s entre requests e apenas 1 retry real em 429.
+  const delayMs = imgChestUploadDefaults.delayMs;
+  const rateLimitWaitMs = imgChestUploadDefaults.rateLimitWaitMs;
+  const maxRateLimitWaitMs = imgChestUploadDefaults.maxRateLimitWaitMs;
+  const maxRetries = Math.min(2, toPositiveInt(options.maxRetries, imgChestUploadDefaults.maxRetries));
   let lastRateLimitInfo = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
@@ -231,6 +247,11 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
 
     if (response.status === 429) {
       lastRateLimitInfo = rateLimitInfo;
+
+      if (attempt >= maxRetries) {
+        throw buildRateLimitError({ maxRetries, lastRateLimitInfo });
+      }
+
       const waitMs = rateLimitWaitMsForAttempt({
         attempt,
         rateLimitWaitMs,
@@ -258,15 +279,7 @@ export async function requestWithImgChestRetry(requestFactory, options = {}) {
     return payload || {};
   }
 
-  setSharedImgChestCooldown(maxRateLimitWaitMs);
-  const error = new Error(label(
-    `ImgChest API continuou em rate limit depois de ${maxRetries} tentativa(s). Tente novamente mais tarde ou reduza o tamanho do lote/delay.`,
-    `ImgChest API stayed rate-limited after ${maxRetries} attempt(s). Try again later or reduce the batch size/delay.`,
-  ));
-  error.status = 429;
-  error.rateLimited = true;
-  error.rateLimitInfo = lastRateLimitInfo;
-  throw error;
+  throw buildRateLimitError({ maxRetries, lastRateLimitInfo });
 }
 
 function extractPostData(payload = {}) {
@@ -370,8 +383,31 @@ export async function getImgChestPost({ token, postId, retry = {} } = {}) {
   );
 }
 
+export async function deleteImgChestPost({ token, postId, retry = {} } = {}) {
+  const clean = cleanToken(token);
+  if (!clean || !postId) return false;
+
+  try {
+    await requestWithImgChestRetry(
+      () => fetch(`${API_BASE}/post/${encodeURIComponent(postId)}`, {
+        method: "DELETE",
+        headers: buildHeaders(clean),
+      }),
+      retry,
+    );
+    return true;
+  } catch (error) {
+    console.warn("Could not delete partial ImgChest post:", error);
+    return false;
+  }
+}
+
 export function buildImgChestPostUrl(postId) {
   return `${POST_URL_BASE}/${encodeURIComponent(postId)}`;
+}
+
+export function buildImgChestDeleteUrl(postId) {
+  return `${DELETE_URL_BASE}/${encodeURIComponent(postId)}`;
 }
 
 export function buildImgChestPostTitle({ albumName = "", folderName = "", chapterNumber = "", template = "{album} {chapter}" } = {}) {
@@ -382,78 +418,97 @@ export function buildImgChestPostTitle({ albumName = "", folderName = "", chapte
     .trim();
 }
 
+async function rollbackPartialImgChestPost({ token, postId, retry, onStatus }) {
+  if (!postId || !imgChestUploadDefaults.deletePartialPostOnFailure) return;
+  onStatus?.({ phase: "rollback", postId });
+  await deleteImgChestPost({ token, postId, retry });
+}
+
 export async function uploadChapterToImgChest({
   token,
   albumName,
   chapterGroup,
   titleTemplate = "{album} {chapter}",
   privacy = imgChestUploadDefaults.privacy,
-  batchSize = imgChestUploadDefaults.batchSize,
   retry = {},
   onStatus,
 } = {}) {
   if (!chapterGroup?.files?.length) throw new Error(label(`Capítulo ${chapterGroup?.number || "?"}: nenhuma imagem encontrada.`, `Chapter ${chapterGroup?.number || "?"}: no images found.`));
 
-  const batches = chunkList(chapterGroup.files, batchSize);
+  const batches = chunkList(chapterGroup.files);
   const title = buildImgChestPostTitle({
     albumName,
     folderName: chapterGroup.folder,
     chapterNumber: chapterGroup.number,
     template: titleTemplate,
   });
-
-  onStatus?.({ phase: "create", batchIndex: 0, batchTotal: batches.length, title });
-  const firstPayload = await createImgChestPost({
-    token,
-    title,
-    images: batches[0],
-    privacy,
-    retry,
-  });
-
-  const postId = extractImgChestPostIdFromPayload(firstPayload);
-  let imageUrls = extractImgChestImageUrlsFromPayload(firstPayload);
-
-  for (let index = 1; index < batches.length; index += 1) {
-    onStatus?.({ phase: "add", postId, batchIndex: index, batchTotal: batches.length, title });
-    const addPayload = await addImagesToImgChestPost({
-      token,
-      postId,
-      images: batches[index],
-      retry,
-    });
-    imageUrls.push(...extractImgChestImageUrlsFromPayload(addPayload));
-  }
-
-  const expectedCount = chapterGroup.files.length;
-  const uniqueUrls = [...new Set(imageUrls.filter(Boolean))];
-
-  if (uniqueUrls.length !== expectedCount) {
-    onStatus?.({ phase: "refresh", postId, batchIndex: batches.length, batchTotal: batches.length, title });
-    const postPayload = await getImgChestPost({ token, postId, retry });
-    imageUrls = extractImgChestImageUrlsFromPayload(postPayload);
-  }
-
-  const finalUrls = [...new Set(imageUrls.filter(Boolean))];
-  if (!finalUrls.length) {
-    throw new Error(label(
-      `Capítulo ${chapterGroup.number}: upload criado, mas a API não retornou links de imagens.`,
-      `Chapter ${chapterGroup.number}: upload was created, but the API did not return image links.`,
-    ));
-  }
-
-  if (finalUrls.length !== expectedCount) {
-    throw new Error(label(
-      `Capítulo ${chapterGroup.number}: a API retornou ${finalUrls.length} link(s), mas eram esperadas ${expectedCount} imagem(ns).`,
-      `Chapter ${chapterGroup.number}: the API returned ${finalUrls.length} link(s), but ${expectedCount} image(s) were expected.`,
-    ));
-  }
-
-  return {
-    number: chapterGroup.number,
-    postId,
-    postUrl: buildImgChestPostUrl(postId),
-    title,
-    imageUrls: finalUrls,
+  const safeRetry = {
+    ...retry,
+    delayMs: imgChestUploadDefaults.delayMs,
+    rateLimitWaitMs: imgChestUploadDefaults.rateLimitWaitMs,
+    maxRateLimitWaitMs: imgChestUploadDefaults.maxRateLimitWaitMs,
+    maxRetries: imgChestUploadDefaults.maxRetries,
   };
+  let postId = "";
+
+  try {
+    onStatus?.({ phase: "create", batchIndex: 0, batchTotal: batches.length, title });
+    const firstPayload = await createImgChestPost({
+      token,
+      title,
+      images: batches[0],
+      privacy,
+      retry: safeRetry,
+    });
+
+    postId = extractImgChestPostIdFromPayload(firstPayload);
+    let imageUrls = extractImgChestImageUrlsFromPayload(firstPayload);
+
+    for (let index = 1; index < batches.length; index += 1) {
+      onStatus?.({ phase: "add", postId, batchIndex: index, batchTotal: batches.length, title });
+      const addPayload = await addImagesToImgChestPost({
+        token,
+        postId,
+        images: batches[index],
+        retry: safeRetry,
+      });
+      imageUrls.push(...extractImgChestImageUrlsFromPayload(addPayload));
+    }
+
+    const expectedCount = chapterGroup.files.length;
+    const uniqueUrls = [...new Set(imageUrls.filter(Boolean))];
+
+    if (uniqueUrls.length !== expectedCount) {
+      onStatus?.({ phase: "refresh", postId, batchIndex: batches.length, batchTotal: batches.length, title });
+      const postPayload = await getImgChestPost({ token, postId, retry: safeRetry });
+      imageUrls = extractImgChestImageUrlsFromPayload(postPayload);
+    }
+
+    const finalUrls = [...new Set(imageUrls.filter(Boolean))];
+    if (!finalUrls.length) {
+      throw new Error(label(
+        `Capítulo ${chapterGroup.number}: upload criado, mas a API não retornou links de imagens.`,
+        `Chapter ${chapterGroup.number}: upload was created, but the API did not return image links.`,
+      ));
+    }
+
+    if (finalUrls.length !== expectedCount) {
+      throw new Error(label(
+        `Capítulo ${chapterGroup.number}: a API retornou ${finalUrls.length} link(s), mas eram esperadas ${expectedCount} imagem(ns).`,
+        `Chapter ${chapterGroup.number}: the API returned ${finalUrls.length} link(s), but ${expectedCount} image(s) were expected.`,
+      ));
+    }
+
+    return {
+      number: chapterGroup.number,
+      postId,
+      postUrl: buildImgChestPostUrl(postId),
+      deleteUrl: buildImgChestDeleteUrl(postId),
+      title,
+      imageUrls: finalUrls,
+    };
+  } catch (error) {
+    await rollbackPartialImgChestPost({ token, postId, retry: safeRetry, onStatus });
+    throw error;
+  }
 }
