@@ -348,6 +348,8 @@ async function runUpload({ modal, form, onSave }) {
     onSave({ imported, failed, conflictMode: settings.conflictMode });
     setProgress(modal, { done: chaptersToUpload.length * 3, total: chaptersToUpload.length * 3, text: copy.done(imported.length) });
     toast(copy.done(imported.length), "success");
+  } catch (error) {
+    toast(error.message || String(error), "error");
   } finally {
     setBusy(false);
     disableForm(form, false);
