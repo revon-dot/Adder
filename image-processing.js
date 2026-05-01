@@ -63,6 +63,14 @@ function shouldFillBackground(mimeType) {
   return String(mimeType || "").toLowerCase() === "image/jpeg";
 }
 
+function emitImageProcessingProgress(detail) {
+  try {
+    window.dispatchEvent(new CustomEvent("adder:image-processing-progress", { detail }));
+  } catch {
+    // Progress events are optional. Processing must keep working if events are unavailable.
+  }
+}
+
 export function filterImageFiles(files = []) {
   return sortByName(toArray(files).filter(isImageFile));
 }
@@ -130,12 +138,17 @@ export async function processImageFiles(files = [], options = {}) {
 
   for (let index = 0; index < images.length; index += 1) {
     const file = images[index];
-    options.onProgress?.({
+    const progress = {
       phase: "processing",
       index,
       total,
       file,
-    });
+      fileName: file.name,
+      relativePath: file.webkitRelativePath || "",
+    };
+
+    emitImageProcessingProgress(progress);
+    options.onProgress?.(progress);
 
     const result = await processImageFile(file, options);
     processed.push({
