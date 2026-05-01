@@ -36,7 +36,7 @@ function renderSavedLinks(current) {
       <div class="row-actions">
         ${githubUrl ? `<a class="btn ghost small" href="${attr(githubUrl)}" target="_blank" rel="noreferrer">${t("openGithub")}</a>` : ""}
         ${cubariUrl ? `<button class="btn ghost small" type="button" id="copy-editor-cubari-btn" data-cubari-url="${attr(cubariUrl)}">${t("copyCubari")}</button>` : ""}
-        <button class="btn danger small" type="button" id="delete-work-btn">${label("Deletar Obra", "Delete Work")}</button>
+        <button class="btn danger small" type="button" id="delete-work-btn">${label("Excluir obra", "Delete work")}</button>
       </div>
     </section>
   `;
@@ -52,13 +52,13 @@ export function renderEditorPage(current, manifest) {
           <button class="dashboard-logo logo-button back-logo-button" type="button" id="logo-dashboard-btn" aria-label="${t("back")}">${backIcon()}</button>
           <div>
             <p class="kicker">${t("editor")}</p>
-            <h2>${escapeHtml(manifest.title || label("Novo Mangá", "New Manga"))}</h2>
+            <h2>${escapeHtml(manifest.title || t("newManga"))}</h2>
           </div>
         </div>
 
         <div class="dashboard-status-row">
           <span class="status-pill"><span class="status-dot"></span>${escapeHtml(repoLabel())}</span>
-          <span class="mini-stat"><strong id="stat-chapters">0</strong> ${label("Capítulos", "Chapters")}</span>
+          <span class="mini-stat"><strong id="stat-chapters">0</strong> ${t("chapters")}</span>
         </div>
       </div>
 
@@ -72,7 +72,7 @@ export function renderEditorPage(current, manifest) {
       <form id="editor-form" class="form-grid editor-form-block">
         <div class="field group editor-main-fields">
           <label class="field">
-            <span>${label("Nome do Arquivo", "File Name")}</span>
+            <span>${t("fileName")}</span>
             <input name="fileName" value="${attr(current.name)}" placeholder="${attr(t("fileNamePlaceholder"))}" ${fileNameReadonly} />
           </label>
           <label class="field">
@@ -104,7 +104,7 @@ export function renderEditorPage(current, manifest) {
       <div class="editor-chapter-actions chapter-action-groups">
         <div class="chapter-action-group chapter-action-single">
           <span class="chapter-action-label">${label("Capítulo único", "Single chapter")}</span>
-          <button class="btn primary" id="add-chapter-btn">${label("Adicionar capítulo", "Add chapter")}</button>
+          <button class="btn primary" id="add-chapter-btn">${t("addChapter")}</button>
         </div>
         <div class="chapter-action-group chapter-action-batch">
           <span class="chapter-action-label">${label("Em lote", "Batch")}</span>
