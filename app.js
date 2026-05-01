@@ -17,6 +17,10 @@ const uploadPreferenceKeys = new Set([
 const uploadPreferencesVersion = 1;
 const uploadImageAccept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
 
+function label(pt, en) {
+  return document.documentElement.lang === "en" ? en : pt;
+}
+
 function normalizeUploadPreferenceValue(value) {
   try {
     const parsed = JSON.parse(String(value || "{}"));
@@ -117,6 +121,38 @@ function installDuplicateSubmitGuard() {
   }, true);
 }
 
+function chapterNameFromRelativePath(relativePath = "") {
+  const parts = String(relativePath || "").split("/").filter(Boolean);
+  if (parts.length >= 2) return parts.at(-2);
+  return label("capítulo", "chapter");
+}
+
+function installBatchProcessingProgressListener() {
+  window.addEventListener("adder:image-processing-progress", (event) => {
+    const form = document.querySelector("#github-folder-upload-form");
+    const status = document.querySelector("[data-folder-upload-status]");
+    const bar = document.querySelector("[data-folder-upload-bar]");
+
+    if (!(form instanceof HTMLFormElement) || !status) return;
+    if (form.dataset.uploading !== "true") return;
+
+    const detail = event.detail || {};
+    const current = Number(detail.index || 0) + 1;
+    const total = Number(detail.total || 0);
+    const chapterName = chapterNameFromRelativePath(detail.relativePath || detail.fileName || "");
+    const fileName = detail.fileName || detail.file?.name || "";
+
+    status.textContent = label(
+      `${chapterName} — processando ${current}/${total}${fileName ? ` — ${fileName}` : ""}`,
+      `${chapterName} — processing ${current}/${total}${fileName ? ` — ${fileName}` : ""}`,
+    );
+
+    if (bar && total) {
+      bar.style.setProperty("--progress", `${Math.round((current / total) * 100)}%`);
+    }
+  });
+}
+
 function navigateToLanding() {
   renderLanding(navigateToConnect);
 }
@@ -138,6 +174,7 @@ try {
   installUploadPreferenceVersioning();
   installDuplicateSubmitGuard();
   installUploadFileInputNormalizer();
+  installBatchProcessingProgressListener();
   saveLanguage(loadSavedLanguage());
   navigateToLanding();
 } catch (error) {
