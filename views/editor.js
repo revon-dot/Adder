@@ -54,13 +54,29 @@ function hasUnsavedChanges() {
   return getCurrentEditorSnapshot() !== state.current.savedSnapshot;
 }
 
+function beforeUnloadUnsavedChanges(event) {
+  if (!hasUnsavedChanges()) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
+
+function updateBeforeUnloadGuard() {
+  window.onbeforeunload = hasUnsavedChanges() ? beforeUnloadUnsavedChanges : null;
+}
+
+function clearBeforeUnloadGuard() {
+  window.onbeforeunload = null;
+}
+
 function confirmLeaveEditor() {
   if (!hasUnsavedChanges()) return true;
   return confirm(t("savedChangesWarning"));
 }
 
 function goToDashboard(navigateToDashboard) {
-  if (confirmLeaveEditor()) navigateToDashboard();
+  if (!confirmLeaveEditor()) return;
+  clearBeforeUnloadGuard();
+  navigateToDashboard();
 }
 
 function bindCopyButton(selector, dataKey) {
@@ -158,6 +174,7 @@ async function deleteCurrentWork(navigateToDashboard) {
     });
     state.files = state.files.filter((file) => file.path !== state.current.path);
     state.current = null;
+    clearBeforeUnloadGuard();
     toast(t("workDeleted"), "success");
     navigateToDashboard();
   } catch (error) {
@@ -211,13 +228,6 @@ function bindEditorEvents(navigateToDashboard) {
   });
   document.querySelector("#logo-dashboard-btn")?.addEventListener("click", () => goToDashboard(navigateToDashboard));
 
-  window.onbeforeunload = hasUnsavedChanges()
-    ? (event) => {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    : null;
-
   bindCopyButton("#copy-editor-cubari-btn", "cubariUrl");
   document.querySelector("#delete-work-btn")?.addEventListener("click", () => deleteCurrentWork(navigateToDashboard));
 
@@ -229,13 +239,22 @@ function bindEditorEvents(navigateToDashboard) {
   titleInput?.addEventListener("input", () => {
     syncAutoFileName();
     updateEditorStats({ skipCoverPreview: true });
+    updateBeforeUnloadGuard();
   });
 
   const coverInput = document.querySelector("input[name='cover']");
-  coverInput?.addEventListener("input", () => updateEditorStats());
-  document.querySelector("#editor-form")?.addEventListener("input", () => updateEditorStats({ skipCoverPreview: true }));
+  coverInput?.addEventListener("input", () => {
+    updateEditorStats();
+    updateBeforeUnloadGuard();
+  });
+
+  document.querySelector("#editor-form")?.addEventListener("input", () => {
+    updateEditorStats({ skipCoverPreview: true });
+    updateBeforeUnloadGuard();
+  });
 
   bindChapterButtons(document, chapterEventOptions(navigateToDashboard));
   syncAutoFileName();
   updateEditorStats();
+  updateBeforeUnloadGuard();
 }
