@@ -62,7 +62,16 @@ async function collectRepositoryStorage(client, path) {
   return result;
 }
 
-async function loadStorageEstimate(client) {
+function refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect) {
+  try {
+    if (!document.querySelector("#dashboard-root")) return;
+    renderDashboardCallback(navigateToEditor, navigateToConnect);
+  } catch {
+    // Storage numbers are informational. Never let them break the dashboard.
+  }
+}
+
+async function loadStorageEstimate(client, renderDashboardCallback = null, navigateToEditor = null, navigateToConnect = null) {
   const root = githubImageDefaults.imagesRoot;
   resetStorageEstimate(root);
 
@@ -84,6 +93,10 @@ async function loadStorageEstimate(client) {
       error: errorMessage(error),
     };
   }
+
+  if (renderDashboardCallback) {
+    refreshDashboardIfStillCurrent(renderDashboardCallback, navigateToEditor, navigateToConnect);
+  }
 }
 
 export async function loadDashboard(navigateToDashboard, navigateToConnect = null, navigateToEditor = null) {
@@ -93,17 +106,15 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
     const config = state.config;
     resetStorageEstimate();
 
-    const [jsonFiles] = await Promise.all([
-      withTimeout(client.listJsonFiles({
-        ...config,
-        path: config.jsonPath,
-      })),
-      loadStorageEstimate(client),
-    ]);
+    const jsonFiles = await withTimeout(client.listJsonFiles({
+      ...config,
+      path: config.jsonPath,
+    }));
 
     if (!jsonFiles.length) {
       state.files = [];
       navigateToDashboard();
+      loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect);
       return;
     }
 
@@ -134,6 +145,7 @@ export async function loadDashboard(navigateToDashboard, navigateToConnect = nul
 
     state.files = loaded;
     navigateToDashboard();
+    loadStorageEstimate(client, renderDashboard, navigateToEditor, navigateToConnect);
   } catch (error) {
     if (error?.status === 404 || error?.status === 409) {
       state.files = [];
