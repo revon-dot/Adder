@@ -103,7 +103,7 @@ function chapterEventOptions(navigateToDashboard) {
 
 function saveEditorFromButton(navigateToDashboard) {
   syncAutoFileName();
-  saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
+  return saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
 }
 
 function upsertUploadedChapter({ number, chapter, conflictMode }) {
@@ -167,9 +167,8 @@ async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
     const { showImgChestBatchUploadModal } = await import("./imgchest-batch-upload-modal.js");
     showImgChestBatchUploadModal({
       onChapterUploaded: ({ number, chapter, conflictMode }) => {
-        // Keep the drawer/console open while still making the editor state the
-        // source of truth chapter by chapter. This lets later subfolders skip
-        // chapters that were just added during the same upload session.
+        // Keep the result drawer/console open while still making the editor
+        // state the source of truth chapter by chapter.
         upsertUploadedChapter({ number, chapter, conflictMode });
         updateBeforeUnloadGuard();
       },
@@ -180,6 +179,11 @@ async function addImgChestBatchUploadWithDrawer(navigateToDashboard) {
             upsertUploadedChapter({ number, chapter, conflictMode });
           });
         }
+        updateBeforeUnloadGuard();
+        toast(unsavedUploadJsonWarning(), "warning");
+      },
+      onSaveToGithub: () => saveEditorFromButton(navigateToDashboard),
+      onReviewFiles: () => {
         renderEditor(navigateToDashboard);
         toast(unsavedUploadJsonWarning(), "warning");
       },
