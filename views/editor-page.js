@@ -3,6 +3,7 @@ import { repoLabel, cubariUrlForPath } from "../repo.js";
 import { renderChapterCards } from "./editor-renderers.js";
 import { renderLanguageToggle, t } from "../i18n.js";
 import { multiChapterUploadButtonLabel } from "./multi-chapter-modal.js";
+import { githubImageUploadButtonLabel } from "./github-image-upload-modal.js";
 
 function backIcon() {
   return `
@@ -94,6 +95,7 @@ export function renderEditorPage(current, manifest) {
       
       <div class="editor-chapter-actions">
         <button class="btn primary" id="add-chapter-btn">${label("Adicionar Capítulo", "Add Chapter")}</button>
+        <button class="btn ghost" id="github-image-upload-btn">${githubImageUploadButtonLabel()}</button>
         <button class="btn ghost" id="multi-chapter-upload-btn">${multiChapterUploadButtonLabel()}</button>
       </div>
       
