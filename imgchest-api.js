@@ -14,7 +14,8 @@ function label(pt, en) {
 export const imgChestUploadDefaults = {
   privacy: "hidden",
   batchSize: 10,
-  delayMs: 6000,
+  delayMs: 10000,
+  chapterDelayMs: 90000,
   rateLimitWaitMs: 60000,
   maxRateLimitWaitMs: 60000,
   maxRetries: 2,
@@ -218,7 +219,7 @@ function buildRateLimitError({ maxRetries, lastRateLimitInfo }) {
 export async function requestWithImgChestRetry(requestFactory, options = {}) {
   // Produto: o Adder v3 não deixa o usuário acelerar o ImgChest por acidente.
   // Todos os fluxos, inclusive capítulo único, usam 10 imagens/request,
-  // 6s entre requests e apenas 1 retry real em 429.
+  // 10s entre requests e apenas 1 retry real em 429.
   const delayMs = imgChestUploadDefaults.delayMs;
   const rateLimitWaitMs = imgChestUploadDefaults.rateLimitWaitMs;
   const maxRateLimitWaitMs = imgChestUploadDefaults.maxRateLimitWaitMs;
@@ -372,7 +373,7 @@ export async function addImagesToImgChestPost({ token, postId, images, retry = {
 
 export async function getImgChestPost({ token, postId, retry = {} } = {}) {
   const clean = cleanToken(token);
-  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest API token."));
+  if (!clean) throw new Error(label("Informe um ImgChest API token.", "Enter an ImgChest token."));
   if (!postId) throw new Error(label("ID do post ImgChest ausente.", "Missing ImgChest post ID."));
 
   return requestWithImgChestRetry(
@@ -498,6 +499,16 @@ export async function uploadChapterToImgChest({
         `Chapter ${chapterGroup.number}: the API returned ${finalUrls.length} link(s), but ${expectedCount} image(s) were expected.`,
       ));
     }
+
+    onStatus?.({
+      phase: "chapterCooldown",
+      postId,
+      batchIndex: batches.length,
+      batchTotal: batches.length,
+      title,
+      waitMs: imgChestUploadDefaults.chapterDelayMs,
+    });
+    await sleep(imgChestUploadDefaults.chapterDelayMs);
 
     return {
       number: chapterGroup.number,
