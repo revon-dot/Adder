@@ -63,6 +63,21 @@ export function sortChapterEntries(chapters = {}) {
   });
 }
 
+export function sortChaptersObject(chapters = {}) {
+  return sortChapterEntries(chapters).reduce((sorted, [number, chapter]) => {
+    sorted[number] = chapter;
+    return sorted;
+  }, {});
+}
+
+export function normalizeManifestForSave(manifest = {}) {
+  const normalized = normalizeManifest(manifest);
+  return {
+    ...normalized,
+    chapters: sortChaptersObject(normalized.chapters),
+  };
+}
+
 export function countImages(manifest = {}) {
   return Object.values(manifest.chapters || {}).reduce((total, chapter) => {
     return total + Object.values(chapter.groups || {}).reduce((sum, images) => sum + (Array.isArray(images) ? images.length : 0), 0);
@@ -159,7 +174,7 @@ export function validateManifest(manifest = {}, fileName = "") {
 }
 
 export function prettyJson(manifest) {
-  return `${JSON.stringify(manifest, null, 2)}\n`;
+  return `${JSON.stringify(normalizeManifestForSave(manifest), null, 2)}\n`;
 }
 
 function encodeBase64Unicode(text) {
