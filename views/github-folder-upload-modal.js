@@ -28,6 +28,7 @@ const copy = {
   linkMode: () => label("Tipo de link", "Link type"),
   rawMode: () => label("Raw GitHub", "Raw GitHub"),
   pagesMode: () => label("GitHub Pages", "GitHub Pages"),
+  pagesWarning: () => label("Use GitHub Pages apenas se o repositório tiver Pages publicado e público. Se estiver em dúvida, use Raw GitHub.", "Use GitHub Pages only if this repository has public Pages enabled. If unsure, use Raw GitHub."),
   conflictMode: () => label("Se o capítulo já existir no JSON", "If the chapter already exists in the JSON"),
   conflictCancel: () => label("Cancelar tudo", "Cancel all"),
   conflictSkip: () => label("Pular existentes", "Skip existing"),
@@ -209,6 +210,12 @@ function updateSelectionPreview(form) {
   const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
   preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}\n${copy.destinationPreview(destinations, remainingDestinations)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
   preview.classList.toggle("warning", isLargeBatch(stats) || Boolean(stats.duplicates.length));
+}
+
+function updatePagesWarning(form) {
+  const warning = form.querySelector("[data-folder-pages-warning]");
+  if (!warning) return;
+  warning.hidden = form.linkMode?.value !== "pages";
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -510,6 +517,7 @@ export function showGithubFolderUploadModal({ onSave }) {
             </label>
           </div>
           <p class="hint">${copy.preferencesHint()}</p>
+          <p class="hint" data-folder-pages-warning hidden>${copy.pagesWarning()}</p>
 
           <section class="multi-chapter-progress" data-folder-upload-progress hidden>
             <div class="multi-chapter-progress-head">
@@ -545,7 +553,10 @@ export function showGithubFolderUploadModal({ onSave }) {
   });
   form.maxWidth?.addEventListener("input", remember);
   form.quality?.addEventListener("input", remember);
-  form.linkMode?.addEventListener("change", remember);
+  form.linkMode?.addEventListener("change", () => {
+    remember();
+    updatePagesWarning(form);
+  });
   form.conflictMode?.addEventListener("change", remember);
 
   form.addEventListener("submit", async (event) => {
@@ -554,6 +565,7 @@ export function showGithubFolderUploadModal({ onSave }) {
   });
 
   updateSelectionPreview(form);
+  updatePagesWarning(form);
 }
 
 export function githubFolderUploadButtonLabel() {
