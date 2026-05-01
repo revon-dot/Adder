@@ -10,6 +10,7 @@ import { updateEditorStats } from "./editor-stats.js";
 import { renderEditorPage } from "./editor-page.js";
 import { showChapterEditModal } from "./chapter-modal.js";
 import { showMultiChapterUploadModal } from "./multi-chapter-modal.js";
+import { showGithubImageUploadModal } from "./github-image-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
@@ -107,6 +108,34 @@ function addMultipleChaptersWithDrawer(navigateToDashboard) {
   });
 }
 
+function addGithubImageChapterWithDrawer(navigateToDashboard) {
+  syncCurrentFromForm();
+  showGithubImageUploadModal({
+    onSave: ({ number, chapter, conflictMode }) => {
+      syncCurrentFromForm();
+      if (!state.current.data.chapters) state.current.data.chapters = {};
+
+      const existingChapter = state.current.data.chapters[number];
+      if (existingChapter && conflictMode === "merge") {
+        state.current.data.chapters[number] = {
+          ...existingChapter,
+          title: chapter.title || existingChapter.title || "",
+          volume: chapter.volume || existingChapter.volume || "",
+          last_updated: chapter.last_updated,
+          groups: {
+            ...(existingChapter.groups || {}),
+            ...(chapter.groups || {}),
+          },
+        };
+      } else {
+        state.current.data.chapters[number] = chapter;
+      }
+
+      renderEditor(navigateToDashboard);
+    },
+  });
+}
+
 async function deleteCurrentWork(navigateToDashboard) {
   if (!state.current || state.current.isNew || !state.current.path || !state.current.sha) return;
   const ok = confirm(t("deleteWorkConfirm", { name: state.current.name || state.current.path }));
@@ -191,6 +220,7 @@ function bindEditorEvents(navigateToDashboard) {
     saveCurrentEditor(navigateToDashboard, renderEditor, editorSnapshot);
   });
   document.querySelector("#add-chapter-btn")?.addEventListener("click", () => addChapterWithDrawer(navigateToDashboard));
+  document.querySelector("#github-image-upload-btn")?.addEventListener("click", () => addGithubImageChapterWithDrawer(navigateToDashboard));
   document.querySelector("#multi-chapter-upload-btn")?.addEventListener("click", () => addMultipleChaptersWithDrawer(navigateToDashboard));
 
   const titleInput = document.querySelector("input[name='title']");
