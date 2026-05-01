@@ -29,6 +29,7 @@ const copy = {
   linkMode: () => label("Tipo de link", "Link type"),
   rawMode: () => label("Raw GitHub", "Raw GitHub"),
   pagesMode: () => label("GitHub Pages", "GitHub Pages"),
+  pagesWarning: () => label("Use GitHub Pages apenas se o repositório tiver Pages publicado e público. Se estiver em dúvida, use Raw GitHub.", "Use GitHub Pages only if this repository has public Pages enabled. If unsure, use Raw GitHub."),
   fileInput: () => label("Imagens", "Images"),
   fileInputHint: () => label("Selecione as páginas do capítulo. O Adder ordena por nome e renomeia como 001.jpg, 002.jpg...", "Select the chapter pages. Adder sorts by name and renames them as 001.jpg, 002.jpg..."),
   selectionEmpty: () => label("Nenhuma imagem selecionada ainda.", "No images selected yet."),
@@ -150,6 +151,12 @@ function updateSelectionPreview(form) {
   const remaining = Math.max(0, ordered.length - 5);
   preview.textContent = `${copy.selectionSummary(stats.count, formatBytes(stats.size))}\n${copy.selectionOrder(names, remaining)}`;
   preview.classList.toggle("warning", isLargeSelection(stats));
+}
+
+function updatePagesWarning(form) {
+  const warning = form.querySelector("[data-github-pages-warning]");
+  if (!warning) return;
+  warning.hidden = form.linkMode?.value !== "pages";
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -469,6 +476,7 @@ export function showGithubImageUploadModal({ onSave }) {
             </label>
           </div>
           <p class="hint">${copy.preferencesHint()}</p>
+          <p class="hint" data-github-pages-warning hidden>${copy.pagesWarning()}</p>
 
           <label class="field">
             <span>${copy.fileInput()}</span>
@@ -519,17 +527,16 @@ export function showGithubImageUploadModal({ onSave }) {
   form.imagesRoot?.addEventListener("input", saveAndPreview);
   form.maxWidth?.addEventListener("input", () => savePreferences(form));
   form.quality?.addEventListener("input", () => savePreferences(form));
-  form.linkMode?.addEventListener("change", () => savePreferences(form));
+  form.linkMode?.addEventListener("change", () => {
+    savePreferences(form);
+    updatePagesWarning(form);
+  });
   form.conflictMode?.addEventListener("change", () => savePreferences(form));
   form.images?.addEventListener("change", () => updateSelectionPreview(form));
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await runUpload({ modal, form, onSave });
-  });
-
   updateDestinationPreview(form);
   updateSelectionPreview(form);
+  updatePagesWarning(form);
   form.number?.focus();
 }
 
