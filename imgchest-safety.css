@@ -1,0 +1,7 @@
+/* ImgChest safety policy: batch/delay are fixed in imgchest-api.js for both
+   batch upload and single chapter upload. These controls are intentionally
+   hidden so users cannot accidentally trigger rate limits. */
+label.field:has(input[name="batchSize"]),
+label.field:has(input[name="delayMs"]) {
+  display: none;
+}
