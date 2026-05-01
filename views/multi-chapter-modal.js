@@ -21,7 +21,6 @@ const copy = {
   manualMode: () => label("Começar em um número específico", "Start from a specific number"),
   manualModeHint: () => label("Use isto para preencher capítulos específicos. Digite o número do capítulo que você começará fazendo o upload.", "Use this to fill specific chapters. Enter the chapter number where the upload should start."),
   startNumber: () => label("Começar em", "Start at"),
-  increment: () => label("Incremento", "Increment"),
   titleTemplate: () => label("Título automático", "Automatic title"),
   titleTemplatePlaceholder: () => label("opcional, ex: Capítulo {n}", "optional, e.g. Chapter {n}"),
   conflictMode: () => label("Se o capítulo já existir", "If the chapter already exists"),
@@ -34,8 +33,7 @@ const copy = {
   startImport: () => label("Importar Capítulos", "Import Chapters"),
   cancel: () => label("Cancelar", "Cancel"),
   pasteLinksFirst: () => label("Cole pelo menos um link ImgChest.", "Paste at least one ImgChest link."),
-  invalidStartNumber: () => label("Informe um número inicial válido.", "Enter a valid start number."),
-  invalidIncrement: () => label("O incremento precisa ser maior que zero.", "The increment must be greater than zero."),
+  invalidStartNumber: () => label("Informe um número inicial inteiro válido.", "Enter a valid whole start number."),
   conflictCancelToast: (numbers) => label(`Conflito: os capítulos ${numbers} já existem.`, `Conflict: chapters ${numbers} already exist.`),
   replaceConfirm: (numbers) => label(`Os capítulos ${numbers} já existem. Substituir esses capítulos?`, `Chapters ${numbers} already exist. Replace them?`),
   progress: (current, total, number) => label(`Importando ${current}/${total} — capítulo ${number}`, `Importing ${current}/${total} — chapter ${number}`),
@@ -73,22 +71,21 @@ function getHighestNumericChapter(chapters = {}) {
 }
 
 function getNextChapterNumber() {
-  return getHighestNumericChapter(state.current?.data?.chapters || {}) + 1;
+  return Math.floor(getHighestNumericChapter(state.current?.data?.chapters || {})) + 1;
 }
 
 function formatChapterNumber(value) {
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(3)));
+  return String(Math.trunc(Number(value) || 0));
 }
 
-function buildPlan({ chapters, urls, mode, startNumber, increment, conflictMode }) {
+function buildPlan({ chapters, urls, mode, startNumber, conflictMode }) {
   const existing = chapters || {};
-  const base = mode === "manual" ? Number(startNumber) : getHighestNumericChapter(existing) + Number(increment);
-  const step = Number(increment);
+  const base = mode === "manual" ? Number(startNumber) : getNextChapterNumber();
   const plan = [];
   const conflicts = [];
 
   urls.forEach((albumUrl, index) => {
-    const number = formatChapterNumber(base + index * step);
+    const number = formatChapterNumber(base + index);
     const exists = Object.prototype.hasOwnProperty.call(existing, number);
     if (exists) conflicts.push(number);
     plan.push({ albumUrl, number, exists, action: exists ? conflictMode : "create" });
@@ -145,7 +142,6 @@ async function runImport({ modal, form, onSave }) {
   const urls = uniqueLines(formData.get("albumUrls"));
   const mode = selectedNumberingMode(form);
   const startNumber = Number(formData.get("startNumber"));
-  const increment = Number(formData.get("increment") || 1);
   const conflictMode = String(formData.get("conflictMode") || "cancel");
   const groupName = String(formData.get("groupName") || "").trim();
   const titleTemplate = String(formData.get("titleTemplate") || "").trim();
@@ -155,18 +151,13 @@ async function runImport({ modal, form, onSave }) {
     return;
   }
 
-  if (mode === "manual" && !Number.isFinite(startNumber)) {
+  if (mode === "manual" && (!Number.isInteger(startNumber) || startNumber < 1)) {
     toast(copy.invalidStartNumber(), "error");
     return;
   }
 
-  if (!Number.isFinite(increment) || increment <= 0) {
-    toast(copy.invalidIncrement(), "error");
-    return;
-  }
-
   const chapters = state.current?.data?.chapters || {};
-  const { plan, conflicts } = buildPlan({ chapters, urls, mode, startNumber, increment, conflictMode });
+  const { plan, conflicts } = buildPlan({ chapters, urls, mode, startNumber, conflictMode });
 
   if (conflicts.length && conflictMode === "cancel") {
     toast(copy.conflictCancelToast(conflicts.join(", ")), "error");
@@ -289,16 +280,10 @@ export function showMultiChapterUploadModal({ onSave }) {
             </label>
           </div>
 
-          <div class="drawer-grid">
-            <label class="field">
-              <span>${copy.startNumber()}</span>
-              <input name="startNumber" type="number" step="0.001" value="${attr(formatChapterNumber(nextNumber))}" />
-            </label>
-            <label class="field">
-              <span>${copy.increment()}</span>
-              <input name="increment" type="number" step="0.001" min="0.001" value="1" />
-            </label>
-          </div>
+          <label class="field">
+            <span>${copy.startNumber()}</span>
+            <input name="startNumber" type="number" step="1" min="1" inputmode="numeric" value="${attr(formatChapterNumber(nextNumber))}" />
+          </label>
 
           <div class="drawer-grid">
             <label class="field">
