@@ -36,6 +36,10 @@ export function encodeBase64Unicode(text) {
   return btoa(binary);
 }
 
+export function stripDataUrlPrefix(base64 = "") {
+  return String(base64).replace(/^data:[^;]+;base64,/, "");
+}
+
 export class GitHubClient {
   constructor(token) {
     this.token = String(token || "").trim();
@@ -115,6 +119,22 @@ export class GitHubClient {
     const body = {
       message: message || `Update ${path}`,
       content: encodeBase64Unicode(text),
+      branch,
+      ...(sha ? { sha } : {}),
+    };
+
+    return this.request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${cleanPath}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async putBase64File({ owner, repo, branch, path, base64Content, message, sha }) {
+    const cleanPath = encodePath(path);
+    const body = {
+      message: message || `Upload ${path}`,
+      content: stripDataUrlPrefix(base64Content),
       branch,
       ...(sha ? { sha } : {}),
     };
