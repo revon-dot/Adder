@@ -6,6 +6,7 @@ import { repoLabel, ensureClient } from "../repo.js";
 import { renderDashboardPage } from "./dashboard-page.js";
 import { bindDashboardEvents } from "./dashboard-events.js";
 import { t } from "../i18n.js";
+import { githubImageDefaults } from "../github-image-links.js";
 
 function withTimeout(promise, ms = 20000) {
   return Promise.race([
@@ -16,15 +17,89 @@ function withTimeout(promise, ms = 20000) {
   ]);
 }
 
+function resetStorageEstimate(root = githubImageDefaults.imagesRoot) {
+  state.storage = {
+    status: "loading",
+    root,
+    bytes: 0,
+    fileCount: 0,
+    error: "",
+  };
+}
+
+async function collectRepositoryStorage(client, path) {
+  let contents;
+
+  try {
+    contents = await client.listContents({
+      ...state.config,
+      path,
+    });
+  } catch (error) {
+    if (error.status === 404) {
+      return { bytes: 0, fileCount: 0 };
+    }
+    throw error;
+  }
+
+  const items = Array.isArray(contents) ? contents : [contents];
+  const result = { bytes: 0, fileCount: 0 };
+
+  for (const item of items) {
+    if (item.type === "file") {
+      result.bytes += Number(item.size) || 0;
+      result.fileCount += 1;
+      continue;
+    }
+
+    if (item.type === "dir") {
+      const nested = await collectRepositoryStorage(client, item.path);
+      result.bytes += nested.bytes;
+      result.fileCount += nested.fileCount;
+    }
+  }
+
+  return result;
+}
+
+async function loadStorageEstimate(client) {
+  const root = githubImageDefaults.imagesRoot;
+  resetStorageEstimate(root);
+
+  try {
+    const estimate = await withTimeout(collectRepositoryStorage(client, root), 30000);
+    state.storage = {
+      status: "ready",
+      root,
+      bytes: estimate.bytes,
+      fileCount: estimate.fileCount,
+      error: "",
+    };
+  } catch (error) {
+    state.storage = {
+      status: "error",
+      root,
+      bytes: 0,
+      fileCount: 0,
+      error: errorMessage(error),
+    };
+  }
+}
+
 export async function loadDashboard(navigateToDashboard, navigateToConnect = null, navigateToEditor = null) {
   renderLoading(t("loadingJsons"));
   try {
     const client = ensureClient();
     const config = state.config;
-    const jsonFiles = await withTimeout(client.listJsonFiles({
-      ...config,
-      path: config.jsonPath,
-    }));
+    resetStorageEstimate();
+
+    const [jsonFiles] = await Promise.all([
+      withTimeout(client.listJsonFiles({
+        ...config,
+        path: config.jsonPath,
+      })),
+      loadStorageEstimate(client),
+    ]);
 
     if (!jsonFiles.length) {
       state.files = [];
