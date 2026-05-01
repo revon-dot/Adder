@@ -15,7 +15,11 @@ import { showGithubFolderUploadModal } from "./github-folder-upload-modal.js";
 import { bindLanguageToggle, t } from "../i18n.js";
 import { ensureClient } from "../repo.js";
 import { setBusy, toast, errorMessage } from "../ui.js";
-import { githubImageDefaults, mangaFolderFromJsonName } from "../github-image-links.js";
+import { githubImageDefaults, mangaFolderFromJsonName, buildGithubImageUrl } from "../github-image-links.js";
+import { normalizeChapterNumber, isValidChapterNumber } from "../chapter-number.js";
+
+const REPOSITORY_IMAGE_EXTENSION_PATTERN = /\.(?:jpe?g|jfif|png|webp)$/i;
+let editorSyncId = 0;
 
 function editorSnapshot(fileName, manifest) {
   return JSON.stringify({
@@ -34,6 +38,12 @@ function deleteWorkAssetsWarning() {
   return document.documentElement.lang === "en"
     ? "\n\nThe image folder for this work will also be deleted from the repository."
     : "\n\nA pasta de imagens desta obra também será deletada do repositório.";
+}
+
+function syncedMissingChaptersWarning(count) {
+  return document.documentElement.lang === "en"
+    ? `${count} chapter(s) were found in the repository and added to the JSON on screen. Click Save to GitHub to write the JSON.`
+    : `${count} capítulo(s) foram encontrados no repositório e adicionados ao JSON na tela. Clique em Salvar no GitHub para gravar o JSON.`;
 }
 
 function syncAutoFileName() {
@@ -270,6 +280,135 @@ async function listRepositoryFilesRecursive(client, path) {
   return files;
 }
 
+function sortRepositoryFilesByName(files = []) {
+  return [...files].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", {
+    numeric: true,
+    sensitivity: "base",
+  }));
+}
+
+function normalizeExistingChapterKeys(chapters = {}) {
+  return new Set(
+    Object.keys(chapters)
+      .map((number) => normalizeChapterNumber(number))
+      .filter(isValidChapterNumber),
+  );
+}
+
+function chapterNumberFromRepositoryFolder(folderName = "") {
+  const number = normalizeChapterNumber(folderName);
+  return isValidChapterNumber(number) ? number : "";
+}
+
+function isRepositoryImageFile(item) {
+  return item?.type === "file" && REPOSITORY_IMAGE_EXTENSION_PATTERN.test(String(item.name || ""));
+}
+
+function sortChaptersByNumber(chapters = {}) {
+  return Object.fromEntries(
+    Object.entries(chapters).sort(([a], [b]) => {
+      const numericA = Number.parseFloat(a);
+      const numericB = Number.parseFloat(b);
+      if (Number.isFinite(numericA) && Number.isFinite(numericB) && numericA !== numericB) {
+        return numericA - numericB;
+      }
+      return String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
+    }),
+  );
+}
+
+async function listContentsOrEmpty(client, path) {
+  try {
+    const contents = await client.listContents({
+      ...state.config,
+      path,
+    });
+    return Array.isArray(contents) ? contents : [contents];
+  } catch (error) {
+    if (error.status === 404) return [];
+    throw error;
+  }
+}
+
+async function syncMissingRepositoryChapters(navigateToDashboard, syncId) {
+  const currentPath = state.current?.path || "";
+  const jsonFileName = state.current?.name || "";
+  if (!state.current || state.current.isNew || !jsonFileName) return;
+
+  const stillCurrentEditor = () => (
+    syncId === editorSyncId &&
+    state.current?.path === currentPath &&
+    Boolean(document.querySelector("#editor-form"))
+  );
+
+  try {
+    const client = ensureClient();
+    const mangaFolder = mangaFolderFromJsonName(jsonFileName);
+    const baseFolder = githubPath.joinPath(githubImageDefaults.imagesRoot, mangaFolder);
+    const existingChapterNumbers = normalizeExistingChapterKeys(state.current.data?.chapters || {});
+    const folders = (await listContentsOrEmpty(client, baseFolder)).filter((item) => item.type === "dir");
+
+    if (!stillCurrentEditor()) return;
+
+    const added = [];
+
+    for (const folder of folders) {
+      if (!stillCurrentEditor()) return;
+
+      const number = chapterNumberFromRepositoryFolder(folder.name);
+      if (!number || existingChapterNumbers.has(number)) continue;
+
+      const chapterFiles = sortRepositoryFilesByName(
+        (await listContentsOrEmpty(client, folder.path)).filter(isRepositoryImageFile),
+      );
+
+      if (!stillCurrentEditor()) return;
+      if (!chapterFiles.length) continue;
+
+      const urls = chapterFiles.map((file) => buildGithubImageUrl({
+        owner: state.config?.owner,
+        repo: state.config?.repo,
+        branch: state.config?.branch,
+        path: file.path,
+        mode: githubImageDefaults.linkMode,
+      }));
+
+      added.push({
+        number,
+        chapter: {
+          title: "",
+          volume: "",
+          last_updated: String(Math.floor(Date.now() / 1000)),
+          groups: {
+            "": urls,
+          },
+        },
+      });
+      existingChapterNumbers.add(number);
+    }
+
+    if (!stillCurrentEditor() || !added.length) return;
+
+    syncCurrentFromForm();
+    if (!stillCurrentEditor()) return;
+
+    if (!state.current.data.chapters) state.current.data.chapters = {};
+    added.forEach(({ number, chapter }) => {
+      if (!Object.prototype.hasOwnProperty.call(state.current.data.chapters, number)) {
+        state.current.data.chapters[number] = chapter;
+      }
+    });
+    state.current.data.chapters = sortChaptersByNumber(state.current.data.chapters);
+
+    renderEditor(navigateToDashboard);
+    toast(syncedMissingChaptersWarning(added.length), "warning");
+  } catch (error) {
+    if (stillCurrentEditor()) {
+      toast(errorMessage(error), "error");
+    }
+  }
+}
+
 async function deleteRepositoryFolderFiles(client, folderPath, workName) {
   const files = await listRepositoryFilesRecursive(client, folderPath);
 
@@ -318,6 +457,8 @@ async function deleteCurrentWork(navigateToDashboard) {
 
 export function openEditor(file, navigateToDashboard) {
   resetEditorListState();
+  const syncId = editorSyncId + 1;
+  editorSyncId = syncId;
 
   if (!file) {
     const data = emptyManifest();
@@ -344,6 +485,7 @@ export function openEditor(file, navigateToDashboard) {
     };
   }
   renderEditor(navigateToDashboard);
+  syncMissingRepositoryChapters(navigateToDashboard, syncId);
 }
 
 export function renderEditor(navigateToDashboard) {
