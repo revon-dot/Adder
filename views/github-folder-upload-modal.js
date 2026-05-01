@@ -17,7 +17,7 @@ function label(pt, en) {
 }
 
 const copy = {
-  button: () => label("Upload pastas GitHub", "GitHub folder upload"),
+  button: () => label("Upload lote local", "Local batch upload"),
   kicker: () => label("Upload local em lote", "Local batch upload"),
   title: () => label("Enviar várias pastas para o GitHub", "Upload multiple folders to GitHub"),
   folderInput: () => label("Pasta com capítulos", "Folder with chapters"),
