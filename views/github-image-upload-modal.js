@@ -38,9 +38,11 @@ const copy = {
   selectImages: () => label("Selecione pelo menos uma imagem.", "Select at least one image."),
   chapterExists: (number) => label(`O capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
   preparing: () => label("Preparando imagens...", "Preparing images..."),
+  checking: (current, total, name) => label(`Verificando ${current}/${total} — ${name}`, `Checking ${current}/${total} — ${name}`),
   processing: (current, total, name) => label(`Processando ${current}/${total} — ${name}`, `Processing ${current}/${total} — ${name}`),
   uploading: (current, total, name) => label(`Enviando ${current}/${total} — ${name}`, `Uploading ${current}/${total} — ${name}`),
   uploadedLine: (name, size) => label(`${name} enviado (${size}).`, `${name} uploaded (${size}).`),
+  overwrittenLine: (name, size) => label(`${name} sobrescrito (${size}).`, `${name} overwritten (${size}).`),
   done: (count) => label(`${count} imagens enviadas. Clique em Salvar no GitHub para gravar o JSON.`, `${count} images uploaded. Click Save to GitHub to write the JSON.`),
   destination: () => label("Destino", "Destination"),
   summary: () => label("Resumo", "Summary"),
@@ -118,6 +120,21 @@ function resolveExistingChapter({ number, conflictMode }) {
   return { exists, shouldContinue: true };
 }
 
+async function getExistingFileSha(client, path) {
+  try {
+    const file = await client.listContents({
+      ...state.config,
+      path,
+    });
+
+    if (Array.isArray(file) || file?.type !== "file") return null;
+    return file.sha || null;
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
 async function runUpload({ modal, form, onSave }) {
   const settings = collectSettings(form);
 
@@ -145,7 +162,7 @@ async function runUpload({ modal, form, onSave }) {
   if (progress) progress.hidden = false;
   disableForm(form, true);
   setBusy(true);
-  setProgress(modal, { done: 0, total: settings.files.length * 2, text: copy.preparing() });
+  setProgress(modal, { done: 0, total: settings.files.length * 3, text: copy.preparing() });
 
   try {
     const processed = await processImageFiles(settings.files, {
@@ -154,7 +171,7 @@ async function runUpload({ modal, form, onSave }) {
       onProgress: ({ index, total, file }) => {
         setProgress(modal, {
           done: index,
-          total: total * 2,
+          total: total * 3,
           text: copy.processing(index + 1, total, file.name),
         });
       },
@@ -185,7 +202,18 @@ async function runUpload({ modal, form, onSave }) {
       const item = items[index];
       setProgress(modal, {
         done: total + index,
-        total: total * 2,
+        total: total * 3,
+        text: copy.checking(index + 1, total, item.fileName),
+      });
+
+      item.sha = await getExistingFileSha(client, item.path);
+    }
+
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      setProgress(modal, {
+        done: total * 2 + index,
+        total: total * 3,
         text: copy.uploading(index + 1, total, item.fileName),
       });
 
@@ -193,10 +221,11 @@ async function runUpload({ modal, form, onSave }) {
         ...state.config,
         path: item.path,
         base64Content: item.base64DataUrl,
-        message: `Upload ${item.path} via Adder Pages`,
+        message: `${item.sha ? "Update" : "Upload"} ${item.path} via Adder Pages`,
+        sha: item.sha,
       });
 
-      addSummaryLine(modal, "ok", copy.uploadedLine(item.fileName, formatBytes(item.size)));
+      addSummaryLine(modal, "ok", item.sha ? copy.overwrittenLine(item.fileName, formatBytes(item.size)) : copy.uploadedLine(item.fileName, formatBytes(item.size)));
     }
 
     const urls = items.map((item) => item.url);
@@ -220,7 +249,7 @@ async function runUpload({ modal, form, onSave }) {
       items,
     });
 
-    setProgress(modal, { done: total * 2, total: total * 2, text: copy.done(items.length) });
+    setProgress(modal, { done: total * 3, total: total * 3, text: copy.done(items.length) });
     toast(copy.done(items.length), "success");
   } catch (error) {
     toast(error.message || String(error), "error");
