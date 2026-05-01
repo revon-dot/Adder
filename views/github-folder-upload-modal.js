@@ -45,6 +45,8 @@ const copy = {
   selectionSummary: (chapters, images, size) => label(`${chapters} capítulos detectados · ${images} imagens · ${size}`, `${chapters} chapters detected · ${images} images · ${size}`),
   detectedPreview: (items, remaining) => label(`Detectado: ${items}${remaining > 0 ? ` +${remaining} capítulo(s)` : ""}`, `Detected: ${items}${remaining > 0 ? ` +${remaining} chapter(s)` : ""}`),
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
+  duplicateChapter: (number, folders) => label(`Capítulo ${number} aparece em mais de uma pasta: ${folders.join(" | ")}`, `Chapter ${number} appears in more than one folder: ${folders.join(" | ")}`),
+  duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
   largeBatchWarning: () => label("Lote grande. O upload pode demorar, gerar muitos commits e deixar o repositório pesado.", "Large batch. Upload may take a while, create many commits, and make the repository heavy."),
   confirmLargeBatch: (chapters, images, size) => label(`Você está prestes a enviar ${chapters} capítulo(s), ${images} imagem(ns), ${size} antes da compressão. Continuar?`, `You are about to upload ${chapters} chapter(s), ${images} image(s), ${size} before compression. Continue?`),
   chapterExists: (number) => label(`Capítulo ${number} já existe.`, `Chapter ${number} already exists.`),
@@ -120,6 +122,7 @@ function chapterFolderInfoForFile(file) {
 function collectChapterGroups(files = []) {
   const groups = new Map();
   const skipped = [];
+  const duplicatePaths = new Map();
 
   filterImageFiles(files).forEach((file) => {
     const info = chapterFolderInfoForFile(file);
@@ -127,6 +130,13 @@ function collectChapterGroups(files = []) {
 
     if (!info) {
       if (!skipped.includes(skippedFolder)) skipped.push(skippedFolder);
+      return;
+    }
+
+    if (groups.has(info.number) && groups.get(info.number).folderPath !== info.folderPath) {
+      const paths = duplicatePaths.get(info.number) || new Set([groups.get(info.number).folderPath]);
+      paths.add(info.folderPath);
+      duplicatePaths.set(info.number, paths);
       return;
     }
 
@@ -142,18 +152,24 @@ function collectChapterGroups(files = []) {
     groups.get(info.number).files.push(file);
   });
 
+  const duplicates = [...duplicatePaths.entries()].map(([number, paths]) => ({
+    number,
+    folders: [...paths],
+  }));
+
   return {
     chapters: [...groups.values()].sort((a, b) => Number.parseFloat(a.number) - Number.parseFloat(b.number)),
     skipped,
+    duplicates,
   };
 }
 
 function selectedStats(form) {
   const files = Array.from(form.querySelector("input[name='folder']")?.files || []);
-  const { chapters, skipped } = collectChapterGroups(files);
+  const { chapters, skipped, duplicates } = collectChapterGroups(files);
   const imageCount = chapters.reduce((sum, chapter) => sum + chapter.files.length, 0);
   const size = chapters.reduce((sum, chapter) => sum + chapter.files.reduce((total, file) => total + (Number(file.size) || 0), 0), 0);
-  return { files, chapters, skipped, imageCount, size };
+  return { files, chapters, skipped, duplicates, imageCount, size };
 }
 
 function isLargeBatch(stats) {
@@ -174,9 +190,10 @@ function updateSelectionPreview(form) {
   const first = stats.chapters.slice(0, 6).map((chapter) => `${chapter.number} (${chapter.files.length})`).join(" → ");
   const remaining = Math.max(0, stats.chapters.length - 6);
   const skipped = stats.skipped.map((folder) => copy.skipNoNumber(folder)).join("\n");
+  const duplicates = stats.duplicates.map((item) => copy.duplicateChapter(item.number, item.folders)).join("\n");
   const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
-  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${warning}`;
-  preview.classList.toggle("warning", isLargeBatch(stats));
+  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
+  preview.classList.toggle("warning", isLargeBatch(stats) || Boolean(stats.duplicates.length));
 }
 
 function setProgress(modal, { done, total, text }) {
@@ -326,6 +343,11 @@ async function runUpload({ modal, form, onSave }) {
 
   if (!stats.chapters.length) {
     toast(copy.noChapters(), "error");
+    return;
+  }
+
+  if (stats.duplicates.length) {
+    toast(copy.duplicateBlocked(), "error");
     return;
   }
 
