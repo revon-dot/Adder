@@ -11,6 +11,13 @@ export const state = {
   current: null,
   search: "",
   lang: localStorage.getItem("adder-pages:lang") || "pt-BR",
+  storage: {
+    status: "idle",
+    root: "mangas",
+    bytes: 0,
+    fileCount: 0,
+    error: "",
+  },
   editor: {
     chapterSearch: "",
     chapterPage: 1,
