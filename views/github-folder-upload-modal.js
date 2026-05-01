@@ -94,11 +94,27 @@ function getRelativePath(file) {
   return String(file.webkitRelativePath || file.name || "");
 }
 
-function groupKeyForFile(file) {
-  const parts = getRelativePath(file).split("/").filter(Boolean);
-  if (parts.length >= 3) return parts[1];
-  if (parts.length >= 2) return parts[0];
-  return "";
+function getPathSegments(file) {
+  return getRelativePath(file).split("/").filter(Boolean);
+}
+
+function chapterFolderInfoForFile(file) {
+  const parts = getPathSegments(file);
+  const folderParts = parts.slice(0, -1);
+
+  for (let index = folderParts.length - 1; index >= 0; index -= 1) {
+    const folder = folderParts[index];
+    const number = extractChapterNumberFromTitle(folder);
+    if (number && isValidChapterNumber(number)) {
+      return {
+        folder,
+        number: normalizeChapterNumber(number),
+        folderPath: folderParts.slice(0, index + 1).join("/"),
+      };
+    }
+  }
+
+  return null;
 }
 
 function collectChapterGroups(files = []) {
@@ -106,24 +122,24 @@ function collectChapterGroups(files = []) {
   const skipped = [];
 
   filterImageFiles(files).forEach((file) => {
-    const folder = groupKeyForFile(file);
-    if (!folder) return;
+    const info = chapterFolderInfoForFile(file);
+    const skippedFolder = getPathSegments(file).slice(0, -1).join("/") || file.name;
 
-    const number = extractChapterNumberFromTitle(folder);
-    if (!number || !isValidChapterNumber(number)) {
-      if (!skipped.includes(folder)) skipped.push(folder);
+    if (!info) {
+      if (!skipped.includes(skippedFolder)) skipped.push(skippedFolder);
       return;
     }
 
-    if (!groups.has(number)) {
-      groups.set(number, {
-        number: normalizeChapterNumber(number),
-        folder,
+    if (!groups.has(info.number)) {
+      groups.set(info.number, {
+        number: info.number,
+        folder: info.folder,
+        folderPath: info.folderPath,
         files: [],
       });
     }
 
-    groups.get(number).files.push(file);
+    groups.get(info.number).files.push(file);
   });
 
   return {
