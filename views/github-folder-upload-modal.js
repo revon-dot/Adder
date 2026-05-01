@@ -44,6 +44,7 @@ const copy = {
   selectionEmpty: () => label("Nenhuma pasta selecionada ainda.", "No folder selected yet."),
   selectionSummary: (chapters, images, size) => label(`${chapters} capítulos detectados · ${images} imagens · ${size}`, `${chapters} chapters detected · ${images} images · ${size}`),
   detectedPreview: (items, remaining) => label(`Detectado: ${items}${remaining > 0 ? ` +${remaining} capítulo(s)` : ""}`, `Detected: ${items}${remaining > 0 ? ` +${remaining} chapter(s)` : ""}`),
+  destinationPreview: (items, remaining) => label(`Destino: ${items}${remaining > 0 ? ` +${remaining} destino(s)` : ""}`, `Destination: ${items}${remaining > 0 ? ` +${remaining} destination(s)` : ""}`),
   skipNoNumber: (folder) => label(`Pasta ignorada sem número detectável: ${folder}`, `Skipped folder with no detectable number: ${folder}`),
   duplicateChapter: (number, folders) => label(`Capítulo ${number} aparece em mais de uma pasta: ${folders.join(" | ")}`, `Chapter ${number} appears in more than one folder: ${folders.join(" | ")}`),
   duplicateBlocked: () => label("Há capítulos duplicados em pastas diferentes. Renomeie/remova as duplicatas antes de enviar.", "There are duplicate chapters in different folders. Rename/remove duplicates before uploading."),
@@ -90,6 +91,18 @@ function savePreferences(form) {
 
 function getJsonFileName() {
   return state.current?.name || "manga.json";
+}
+
+function imagesRootFromForm(form) {
+  return String(form.imagesRoot?.value || githubImageDefaults.imagesRoot).trim() || githubImageDefaults.imagesRoot;
+}
+
+function destinationForChapter(form, number) {
+  return buildGithubImageFolder({
+    imagesRoot: imagesRootFromForm(form),
+    jsonFileName: getJsonFileName(),
+    chapterNumber: number,
+  });
 }
 
 function getRelativePath(file) {
@@ -188,11 +201,13 @@ function updateSelectionPreview(form) {
   }
 
   const first = stats.chapters.slice(0, 6).map((chapter) => `${chapter.number} (${chapter.files.length})`).join(" → ");
+  const destinations = stats.chapters.slice(0, 4).map((chapter) => `${chapter.number} → ${destinationForChapter(form, chapter.number)}`).join(" | ");
   const remaining = Math.max(0, stats.chapters.length - 6);
+  const remainingDestinations = Math.max(0, stats.chapters.length - 4);
   const skipped = stats.skipped.map((folder) => copy.skipNoNumber(folder)).join("\n");
   const duplicates = stats.duplicates.map((item) => copy.duplicateChapter(item.number, item.folders)).join("\n");
   const warning = isLargeBatch(stats) ? `\n${copy.largeBatchWarning()}` : "";
-  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
+  preview.textContent = `${copy.selectionSummary(stats.chapters.length, stats.imageCount, formatBytes(stats.size))}\n${copy.detectedPreview(first, remaining)}\n${copy.destinationPreview(destinations, remainingDestinations)}${skipped ? `\n${skipped}` : ""}${duplicates ? `\n${duplicates}` : ""}${warning}`;
   preview.classList.toggle("warning", isLargeBatch(stats) || Boolean(stats.duplicates.length));
 }
 
@@ -524,7 +539,10 @@ export function showGithubFolderUploadModal({ onSave }) {
 
   modal.querySelectorAll("[data-close-modal]").forEach((button) => button.addEventListener("click", close));
   form.folder?.addEventListener("change", () => updateSelectionPreview(form));
-  form.imagesRoot?.addEventListener("input", remember);
+  form.imagesRoot?.addEventListener("input", () => {
+    remember();
+    updateSelectionPreview(form);
+  });
   form.maxWidth?.addEventListener("input", remember);
   form.quality?.addEventListener("input", remember);
   form.linkMode?.addEventListener("change", remember);
