@@ -97,7 +97,7 @@ export function renderChapterCards(manifest) {
   return `
     <div class="chapter-manager">
       <div class="chapter-toolbar-light">
-        <input id="chapter-search-input" data-keep-enabled="true" value="${attr(state.editor.chapterSearch)}" placeholder="${attr(t("chapterSearchPlaceholder"))}" />
+        <input id="chapter-search-input" type="search" dir="ltr" data-keep-enabled="true" value="${attr(state.editor.chapterSearch)}" placeholder="${attr(t("chapterSearchPlaceholder"))}" autocomplete="off" />
         <div class="chapter-toolbar-meta">
           ${renderChapterPageSizeSelect()}
           <span class="chapter-count">${entries.length} / ${allEntries.length} ${t("chapters")}</span>
